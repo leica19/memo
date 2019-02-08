@@ -101,9 +101,9 @@ fetch('some/api/a'
     .then(res => {
       // BのAPIの完了処理
     })
-    
+
   少しシンプルになりました。
-  
+
   ただし、このアプローチでは求めた結果は得られたとしても、
   まだ問題が残ります。
   この例では、複数のPromiseを合わせただけで、コードの書き方にも幅が生まれています。書き方に幅があるということは、
@@ -134,4 +134,99 @@ RPとは、時間と共に変化する値に対する操作を宣言的に記述
 そして、これら時間とともに変化する値のひとまとまりを、
 ストリーム（stream）と呼んで扱います。
 
+# 宣言的に記述する
+
+ストリームに対して操作を宣言的に記述するとは、どういうことか説明します。
+
+buttonEl.addEventListener('click', ev => {
+  const spanE1 = document.createElement('span')
+  if (ev.altKey) {
+    spanE1.innerText = 'altKey'
+  } else if (ev.shiftKey) {
+    spanE1.innerText = 'shiftKey'
+  } else {
+    spanE1.innerText = 'clicked'
+  }
+  resultEl.appendChild(spanE1)
+})
+
+これは、前節で紹介したイベントハンドリングの例です。
+今後if文が増えていったり、中の処理が多くなると、見通しが悪くなる懸念がある、というものでした。
+これをストリームとして扱うとどうなるでしょうか。
+
+const buttonClick$ = Rx.Observable.fromEvent(buttonEl, 'click')
+
+buttonClick$
+  .filter(ev => !ev.altKey && !ev.shiftKey)
+  .subscribe(ev => {
+    const spanE1 = document.createElement('span')
+    spanE1.innerText = 'clicked'
+    resultEl.appendChild(spanE1)
+  })
+
+  buttonClick$
+    .filter(ev => ev.altKey)
+    .subscribe(ev => {
+    const spanEl = document.createElement('span')
+      spanEl.innerText = 'altKey!'
+      resultEl.appendChild(spanEl)
+    })
+
+    buttonClick$
+    .filter(ev => ev.shiftKey)
+    .subscribe(ev => {
+      const spanEl = document.createElement('span')
+      spanEl.innerText = 'shiftKey!'
+      resultEl.appendChild(spanEl)
+    })
+
+クリックイベントをストリームとしてｒ扱うために登場するのがRxJSです。
+ストリームを作成するために、ここではRx.Observable.fromEvent()というAPIを使っています*。
+
+ここではJSのDOMイベントをストリームに変換するものと考えて下さい。
+
+一見するとif文よりさらに長くなってしまったように見えます。
+そこで、subscribe()に注目してみましょう。
+subscribe()もRxJSのAPIのひとつです。
+時間とともに変化する値がどうなっているか観測するためのAPIで、addEventListener()のリスナー関数に相当します。
+
+ボタンがクリックされたら、subscribe()の中の関数が作動します。
+ここまでは、addEventListener()とよく似ています。
+つづいて、その前に書かれた.filter()を見てみましょう。
+.filter()を書くことで、ストリームはそのフィルタがtrueを返すときにしか先に流れ￥ません。
+こうすることで、addEventListener（）との大きな違いとして、subscribe()にはif文がひとつも出てきません。
+
+if文のないコードはよいものです。
+なぜなら関数の引数に値が入力されてから、戻り値として出力されるまでの処理が常に一定となるからです。
+常に一定であるということは引数を与えるだけで戻り値が確定し、デバックがとてもやりやすいものとなります。
+
+今回の例では、条件分岐させるための条件を、filter()内に、
+行いたい処理そのものをsubscribe（）に分けて別々の関数にしたことで、それぞれの関数内ではif文が登場せず、
+関数単位のデバックが容易になりました。
+
+このように、特定の条件下で結果が一定となるように、
+条件と処理を宣言的に書いていく。そして複数の小さく単純な関数を組み合わせることで、達成したい処理を作っていく。
+このプログラミング手法がリアクティブ・プログラミングです。
+
+# PromiseをRxJSで扱う
+
+addEventListener()の代わりに
+RxJSでイベントを同様に扱えるようにするAPIがObservable.fromEvent()でした。
+
+もうひとつ「いつ起こるかわからない処理」として紹介したPromiseについても、RxJSで扱えます。
+それがObservable.fromPromise()です。
+
+// Promiseを返す処理
+const fetchPromise = fetch('path/to')
+
+// fromPromise()でストリーム化
+const response$ = Rx.Observable.fromPromise(fetchPromise)
+
+Promiseをストリームとして扱うためには、fromPromise()にPromiseを渡すだけなので、
+とても簡単です。そのストリームに流れる値の処理には、then()の代わりにsubscribe()を使います。
+
+RxJsは、ライブラリとしてRPの手法をまとまった単位にしたことで、
+このライブラリを採用するプロジェクト全体にRPを浸透させやすくしている
+
 https://app.codegrid.net/entry/2017-rxjs-1
+https://app.codegrid.net/entry/2017-rxjs-2
