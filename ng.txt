@@ -1,0 +1,70 @@
+AngularJSには、主に次のような2つの特徴があります。
+
+HTMLに記述していくテンプレート
+
+双方向データバインディング
+
+AngularJSが得意なこと・苦手なこと
+
+設計や実装をある程度強制され、それに従うことで、コード量が削減されたり、
+実装者による品質の差を小さくするなど、生産性が大きく向上することが期待できます。
+
+アニメーションをバリバリに効かせた、
+インタラクティブなWebアプリケーションなどは、
+あまりAngularJSは向いていません。
+
+あまりアニメーションなどの派手な動きを必要としない、
+たとえば、業務用アプリケーションや、サービスの管理画面など、
+データの変更やそれにともなうUIの描画処理が頻発するようなアプリケーションには向いています。
+
+AngularJSはそういった用途で利用すると、
+生産性を大きく向上させる可能性のあるフレームワークではないかと思います。
+
+React：
+Virtual DOMを特徴とするViewに特化したライブラリ。
+View以外の実装や、設計の方針などは提供しない
+
+テンプレートとしてのHTML
+
+検索ボックスにテキストを入力すると、
+入力に応じてリストの項目がフィルタリングされる、
+いわゆるインクリメンタル検索の動きになっています。
+
+これをライブラリなどを使わず素のJavaScriptで実装するとしましょう。
+この場合、検索ボックスにイベントを張って値を取得し、
+マッチしたテキストを表示、マッチしなかった要素は非表示にするなど、
+多くの処理を書く必要がありますが、
+AngularJSでは次のように、とても簡単にこのような機能を実装できます。
+
+<!DOCTYPE html>
+<html lang="ja" ng-app="myApp">
+<head>
+<meta charset="utf-8">
+<title>AngularJS incremental search demo</title>
+<script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.5.8/angular.min.js"></script>
+</head>
+<body>
+
+<script>
+  angular.module('myApp', [])
+    .controller('MainCtrl', function($scope) {
+      $scope.people = [
+        { firstName: 'Kazuhito', lastName: 'Hokamura' },
+        { firstName: 'Takeshi',  lastName: 'Takatsudo' },
+        { firstName: 'Akihiro',  lastName: 'Oyamada' },
+        { firstName: 'Kazunori',  lastName: 'Tokuda' },
+        { firstName: 'Yukihisa',  lastName: 'Yamada' },
+      ];
+    });
+</script>
+
+<div ng-controller="MainCtrl">
+  <input type="search" placeholder="Search" ng-model="search">
+  <ul ng-repeat="person in people | filter:search">
+    <li>{{person.firstName}} {{person.lastName}}</li>
+  </ul>
+</div>
+</body>
+</html>
+
+このような処理がほとんどJavaScriptでロジックを書かずに実現できていることがわかります。

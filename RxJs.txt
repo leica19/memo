@@ -230,3 +230,145 @@ RxJsは、ライブラリとしてRPの手法をまとまった単位にした�
 
 https://app.codegrid.net/entry/2017-rxjs-1
 https://app.codegrid.net/entry/2017-rxjs-2
+
+RxJSの始め方
+
+RxJSはnpmのパッケージとして提供されています。そしてCDN経由でも読み込めるため、
+そのまま<script>タグで読み込んで使うことも可能です。
+CDNから読み込むとすぐにコードを書き始めることができるので、
+アプリケーションにいきなり組み込む前にちょっとRxJSの挙動を確認したいというときに手軽に始められます。
+
+<script src="https://unpkg.com/@reactivex/rxjs@5.4.0/dist/global/Rx.js"></script>
+
+RxJSの基本的な処理
+
+イベントや非同期処理の結果などをストリームに変換して一貫性を持って扱うためのライブラリ
+
+基本的な事項
+
+もっともシンプルな例
+
+イベントや非同期処理の結果などをストリームに変換する
+
+ストリームの購読を開始し、それらに対して処理を行う
+
+ストリームの購読を終了する。
+
+イベントをストリームに変換して処理する
+
+１：ストリームへの変換
+
+Rx.Observable
+  .fromEvent(document, 'scroll')
+
+Observable.fromEvent()がイベントをストリームに変換している部分です。
+先頭のRxは、CDN経由でRxJSを読み込んだときに格納されるグローバル変数です。
+fromEvent()は２つの引数を持ちます。
+第一引数にはイベントが発生するDOM要素、第二引数にはイベント名を与えます。
+
+ここでは、第一引数にスクロールする要素documentを、第二引数のイベント名には'scroll'を与えます。
+
+この１行で、ページをスクロールするごとにスクロールイベントがストリーム内を流れるようになります。
+
+ただし、この時点ではストリームに変換しているだけですので、何も起きません。
+
+２：ストリームの購読を開始する
+
+Rx.Observable
+  .fromEvent(document, 'scroll')
+  .subscribe(ev => {
+    document.querySelector('#result').innerText = ev.target.body.scrollTop
+    const alpha = ev.target.body.scrollTop / 5000
+    ev.target.body.style.background = `rgba(0, 0, 128, ${alpha})`
+  })
+
+ストリーム内を流れるイベントに応じた処理を書けるようにするには、.subscribe()をつなげて書きます。
+.subscribe()とつなげれば、そのストリームを購読し、そこに流れる値が処理できる。
+.subscribeの引数には、関数を渡します。
+
+.subscribeはObservableインスタンスが持つメソッドです。
+Observable.fromEvent()はこのObservableインスタンスを返すメソッドなので、
+このようにドットをつなげてチェーンとして記述できるのです。
+
+ストリームの購読を終了する
+
+subscribeでスクロールイベントを取得し、
+イベントが起こるたびに任意の処理をすることができる
+
+しかし、このままでは、不要なときでも、スクロールが発生するたびに処理が動いてしまっています。
+全体のパフォーマンスが下がります。
+そして、常にイベントの発生を待ち受けている必要があるため、ブラウザ内でもメモリが確保され続けることになり、
+これはメモリリークの原因につながります。
+
+不要になったら購読を終了する必要がある。
+unsubscribeです。
+
+先の例でのsubscribeには戻り値があります。
+この戻り値をSubscriptionインスタンスと呼びます。
+
+そしてこのSubscriptionインスタンスにunsubscribe()メソッドが備わっています。
+これには引数がありませんので、単に呼ぶだけとなります。
+
+subscription.unsubscribe()で購読を終了します。
+
+const subscription = Rx.Observable
+  .fromEvent(document, 'scroll')
+  .subscribe(ev => {
+    document.querySelector('#result').innerText = ev.target.body.scrollTop
+    const alpha = ev.target.body.scrollTop / 5000
+    ev.target.body.style.background = `rgba(0, 0, 128, ${alpha})`
+  })
+
+subscription.unsubscribe()
+
+RxJSはsubscribe()すればストリームに流れる値を処理でき、
+unsubscribe()すればそれが止まることがわかりました。
+
+実装においては、この購読の開始と停止をきちんとコントロールする必要があります。
+
+「購読開始」ボタンを押すまでは、
+スクロールしても何も変化がありません。
+つづいて「購読開始」ボタンを押してからスクロールすると背景色が変化するようになります。
+そして「購読停止」ボタンを押してみましょう。
+すると、またスクロールしても背景色が変化しないようになります。
+
+const subscriptions = []
+const scroll$ = Rx.Observable.fromEvent(document, 'scroll')
+
+const start = (stream) => {
+  subscriptions.push(
+    stream.subscribe(ev => {
+      const alpha = ev.target.body.scrollTop / 5000
+      ev.target.body.background = `rgba(0, 0, 128, ${alpha})`
+    })
+  )
+}
+
+const stop = () => {
+  subscriptions.forEach(subscription => {
+    subscription.unsubscribe()
+  })
+}
+
+const subscribeEl = document.querySelector('#subscribe')
+Rx.Observable
+  .fromEvent(subscribeEl, 'click')
+  .subscribe(() => {
+    start(scroll$)
+  })
+
+const unsubscribeEl = document.querySelector('#unsubscribe')
+Rx.Observable
+  .fromEvent(unsubscribeEl, 'click')
+  .subscribe(() => {
+    stop()
+  })
+
+const subscriptions = []は
+購読停止に必要なSubscriptionインスタンスを保持しておくための受け皿となる配列です
+
+const scroll$はdocumentをスクロールしたときのイベントを流すストリームの生成です。
+
+subscribe()するまで処理はされません。
+ストリームは作成するだけでは、何ら処理が働くものではなく、
+subscribe()しなければパフォーマンスに負担を与えるものにはなりません。
