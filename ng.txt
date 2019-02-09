@@ -140,3 +140,121 @@ var app = angular.module('myApp', ['ngResource']);
 
 これによってmyAppモジュールを使ってngが自動的にアプリのセットアップを行います。
 ngではこのセットアップをブートストラップと呼んでいます。
+
+モジュールの使い方
+
+このようにして作ったモジュールを使って、
+コントローラーやディレクティブといったアプリケーションの機能を定義することができます。
+
+var app = angular.module('myApp', []);
+
+// コントローラーを定義
+app.controller('MainCtrl', function($scope) {
+
+});
+
+// ディレクティブを定義
+app.directive('myDirective', function() {
+  // ...
+});
+
+angular.module()の第二引数を指定せずに呼び出すと
+myAppモジュールをどこからでも取得できるため、
+ファイルごとにコントローラーやディレクティブを分ける場合に便利
+
+var app = angular.module('myApp');
+
+AngularJSを使わないアプリケーションでは、
+グローバル領域にひとつネームスペースを作って、
+その下にモデルやビューなどの機能を作っていくことが多いのですが、
+AngularJSのモジュールはそれと同じようなことを、
+グローバルのネームスペースを汚さずにできると考えればわかりやすい
+
+AngularJSを使わない場合
+
+window.myApp = {};
+
+// Modelを定義
+myApp.TodoModel = function() {
+  // ...
+};
+
+// Viewを定義
+myApp.TodoView = function() {
+  // ...
+};
+
+コントローラーの定義
+
+AngularJSのコントローラーは、
+ビューにスコープを作り、そのふるまいなどを定義します。
+
+コントローラーを定義するにはHTMLでng-controller属性にコントローラー名を指定し、
+app.controllerメソッドにそのコントローラー名を指定します。
+
+コントローラーの名前に決まりはありませんが、
+AngularJSの公式サイトなどでは、MainCtrlなどのように、
+大文字から始めてCtrlを後ろに付けるという規則が多い
+
+<div ng-controller="MainCtrl">
+  <!-- ... -->
+</div>
+
+var app = angular.module('myApp', []);
+
+app.controller('MainCtrl', function($scope) {
+  // ...
+});
+
+コントローラーの関数が引数として受け取る$scopeというオブジェクトが、
+ngにおいて重要になる。
+
+$scopeオブジェクト
+
+<div ng-controller="MainCtrl">
+  <input type="text" ng-model="name">
+  <div>Hello {{name}}!</div>
+</div>
+
+テキストボックスの値が変われば、
+表示も変わりますが、このときnameのデータを保持しているのが
+コントローラーに渡される$scopeオブジェクトです。
+
+ng-modelが指定されたテキストボックスの値が変わると、
+$scope.nameの値が自動的に変更され、
+$scope.nameの値が変更されれば自動的にビューに反映されるということになります。
+
+コントローラーの関数で
+以下のように定義することでnameの初期値を設定することができます。
+
+app.controller('MainCtrl', function($scope) {
+  $scope.name = 'da';
+});
+
+初期表示で$scope.nameに設定した文字列が表示されており、
+$scopeの値がビューに紐付いていることがわかります。
+
+# コントローラーのスコープ
+
+コントローラーはアプリケーションの中に複数つくることができ、
+その場合別々のスコープで動作するようになります。
+
+<div ng-controller="FirstCtrl">
+  <input type="text" ng-model="name">
+  <div>Hello {{name}}!</div>
+</div>
+
+<div ng-controller="SecondCtrl">
+  <input type="text" ng-model="name">
+  <div>Hello {{name}}!</div>
+</div>
+
+app.controller('FirstCtrl', function($scope) {
+});
+
+app.controller('SecondCtrl', function($scope) {
+});
+
+片方のテキストボックスの入力を変更しても、
+もう片方には影響していないのがわかります。
+これはコントローラーごとにスコープが分かれていることを意味します。
