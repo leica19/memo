@@ -68,3 +68,75 @@ AngularJSでは次のように、とても簡単にこのような機能を実�
 </html>
 
 このような処理がほとんどJavaScriptでロジックを書かずに実現できていることがわかります。
+データとUIを双方向に結び付け、UIが変更されれば自動的にデータが変更され*、
+データが変更されると自動的にUIが変更されます。
+
+<!DOCTYPE html>
+<html lang="ja" ng-app>
+<head>
+<meta charset="utf-8">
+<title>AngularJS bindinig demo</title>
+<script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.5.8/angular.min.js"></script>
+</head>
+<body>
+<input type="text" ng-model="name">
+<div>Hello {{name}}!</div>
+</body>
+</html>
+
+ng-model="name"という属性がinput要素に付加されています。
+これによってこのテキストボックスに入力された文字は、ngアプリの内部ではnameというデータとして保持され、
+入力されるたびにnameというデータは更新されます。
+
+nameというデータが更新されると、
+HTMLに埋め込まれている{{name}}というAngularJSのテンプレートタグの部分も、
+nameデータと紐付いており、
+nameデータが変更されると自動的に{{name}}の部分が再描画されます。
+
+このようにnameというデータと、
+それに紐付けられたUIが双方向に同期するのが双方向データバインディングです。
+データとUIが自動的に同期される処理を自分で書くのはかなり面倒な処理となりますが、
+それをすべてAngularJSが自動的にやってくれるので、大幅にコード量が削減されます。
+
+***
+
+<script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.5.8/angular.min.js"></script>
+
+AngularJSは他に依存するライブラリはないのでこれだけです。
+
+次に、HTMLで、html要素にng-appという属性を付加します。
+
+<!DOCTYPE html>
+<html lang="ja" ng-app>
+...
+</html>
+
+ng-appを付加した要素以下が、ngの処理の対象となります。
+body要素やdiv要素に付加することもできますが、html属性に付加することが多いようです。
+
+ngでは、アプリごとにモジュールをつくり、
+アプリ関するJSの処理は基本的にすべてそのモジュールに紐付けていきます。
+
+JSでangular.module()を使って、新規モジュールを作成します。
+ここではmyAppという名前でモジュールを定義します。
+
+var app = angular.module('myApp', []);
+
+第二引数の値には配列を指定しますが、ここにはmyAppモジュールが依存するモジュールを記述します。
+たとえばAjax通信を便利に使うことができるようになるngResourceという公式のモジュールを使いたい場合は、
+angular-resource.jsを別途読み込み、次のように指定します。
+
+var app = angular.module('myApp', ['ngResource']);
+
+モジュールを新規作成する場合は、
+依存するモジュールがなくても第二引数には空の配列を指定する点に注意してください。
+第二引数を指定しない場合、モジュールの作成ではなく、既存モジュールの取得という意味になるからです。
+
+そして、html要素のng-app属性にモジュール名を指定します。
+
+<html ng-app="myApp">
+...
+</html>
+
+これによってmyAppモジュールを使ってngが自動的にアプリのセットアップを行います。
+ngではこのセットアップをブートストラップと呼んでいます。
