@@ -39,3 +39,153 @@ Webページを表示していたタブが閉じていても、
     以前に取得していたキャッシュを返却することでオフラインな状況でも動作する
     Webページを開かなくてもバックグラウンドで最新の情報に更新する
     Webページからのプッシュ通知を受け取る
+
+ただ、これらのことはService Workerだけで実現する機能ではありません。
+Service Workerを土台にして、
+Fetch API、Cache API、Push API
+といった別の機能を組み合わせることで実現する機能です。
+
+Service Worker自体は、
+最初に書いたとおりWebページの裏側で動くJavaScript環境でしかありません。
+ですが、
+そんなService Workerと、
+ほかの新たな機能を組み合わせることで、
+これまでのWebにはできなかった機能を提供できる可能性を持っています。
+
+# ライフサイクル
+
+Service WorkerはWebページから独立したライフサイクルの中で動作すると前述しました。
+ライフサイクルとは、一般的には、生物が生まれてから死んでいくまでの流れや、
+ある製品の発売から売上が変化していく様子を表したものなどを指す言葉です。
+プログラミングにおいてはたいてい、あるプログラムが起動して終了するまでの間、
+そこで起こる出来事、その周期を指します。
+
+Webページでいえば、あるページが開かれて閉じられるまでの間、
+JavaScriptのコードでいえば、あるインスタンスを初期化してそれが破棄されるまでの間、
+という具合になるでしょう。
+
+そして、ライフサイクルの中ではそうしたものたち自身に関するさまざまなイベントが発生します。
+Webページであればページが開かれる、ページが遷移する、
+ページが閉じられるなどのイベントです。
+普段、開発者はそうしたイベントに対して処理を行うコードを書いていく場面があるでしょう。
+
+Service Workerも同じようにライフサイクルを持ち、
+その中でイベントが発生していきます。
+Service Workerは、Webページやその中にあるDOMのように、
+目で見てその状態を把握しやすいものではありません。
+ですので、どのようなライフサイクルやイベントを持っているのかを把握しておくことで、
+Service Workerの全体像も理解しやすくなると思います。
+
+# Service Workerが持つ6つの状態
+
+parsed
+
+parsedは初期状態です。
+Service Workerはまだインストールされておらず、
+まだService Workerとして呼び出されたスクリプトが読み込まれたくらいの段階です。
+すぐさま次の状態へ遷移するため、あまり意識することはありません。
+
+installing
+
+installingは名前のとおり、Service Workerをインストールしている最中の状態です。
+Service Workerの新規インストールか、あるいは更新されている場合にもこの状態をとります。
+
+この際にService Workerのライフサイクルイベントであるinstallイベントが発生しており、
+Service Worker側のJavaScriptではこのイベントをハンドリングして
+必要に応じた（たとえばキャッシュを構築するような）インストール処理を行うこともできます。
+
+すでに有効なService Workerがインストール済みで、
+更新もされていない場合にはactivatedまでスキップされます。
+
+installed
+
+installedは先のinstalling状態を問題なく通過した状態です。
+この段階でService Workerのインストールには成功していますが、
+まだService Workerは有効になっていません。
+
+Service Workerを新規インストールしている場合には、すぐに次のactivating状態へと遷移します。
+Service Workerを更新してる場合には、古いService WorkerがまだWebページを制御しているので、
+新しいService Workerはこの状態に留まります。
+
+この状態に留まった新しいService Workerが有効になるには、ユーザーがWebページから離れるなどして、
+ブラウザが安全に古いService Workerを解放できた
+後に再度Webページを開くことで、
+次のactivating状態に移る必要があります。
+また、この状態はオンライン上のドキュメントではwaitingと呼ばれることも多いです。
+
+activating
+
+installedの次の状態がactivatingです。
+Service Workerの新規インストール時には前段階のinstalledからすぐにこの状態になります。
+更新の場合には、古いService Workerに代わって新しいService Workerが有効になる段階です。
+
+installingのときと同じように、
+activating時にはライフサイクルイベントのactivateイベントが発生します。
+Service Worker側のJavaScriptでは
+イベントをハンドリングして必要に応じた処理（たとえば古いキャッシュを破棄するような）をすることもできます。
+
+activated
+
+Service Workerが、
+対象のWebページを問題なく制御下に置いた状態です。
+
+この状態でService WorkerはWebページからのリクエストに反応するfetchや、
+Webページからのメッセージを受け取るmessageイベントを待つことができます。
+
+redundant
+
+次の理由でService Workerが無効となった状態です。
+
+    installイベント中にエラーが発生した
+    activateイベント中にエラーが発生した
+    新しいService Workerと置き換えられた
+
+# Service Workerのセキュリティ
+
+HTTPS（またはlocalhost）で動かすこと
+
+Service Workerの機能はとても強力です。
+キャッシュを利用したオフライン対応などの用途に使うのであればよいのですが、
+悪意を持った者がWebページのリクエストを盗み取るためにService Workerを利用しては問題です。
+そのため、Service WorkerはHTTPS（あるいはlocalhost）で提供されているWebページでしか登録できません。
+これによって、Service Workerが改ざんを受けていないことを保証しています。
+
+Service Workerは
+読み込まれたオリジンと同一のオリジンを持つWebページにしか効力を持ちません。
+たとえば、https://www.pxgrid.com/から登録されたService Workerは、
+https://app.codegrid.net/にあるWebページを制御下に置くことはできません。
+
+オリジンが同一であるというのは、
+ホストだけでなくURIスキームとポートも同一であることが求められます。
+ですので、スキーム違いとなるhttp://app.codegrid.net/とhttps://app.codegrid.net/、
+ポート違いとなるhttps://app.codegrid.net:80/とhttps://app.codegrid.net:81/は
+同一オリジンとなりません。
+
+# スコープにしたがう
+
+Service Workerは
+その役割を担うスクリプトファイルが置かれているパスよりも
+上位のパスにあるWebページを制御下に置くことは、基本的にはできません。
+
+Service Workerのスクリプトが/sw.jsにあるのなら、
+同一オリジンにあるすべてのWebページを制御下に置くことができます。
+
+そうではなく、スクリプトが/scope/sw.jsにあるのなら、
+/scope/index.htmlや/scope/foo/bar.htmlのように/scope/より下層のWebページのみを制御できます。
+/out-of-scope/index.htmlのようなパスにあるページは制御できません。
+
+DOMにアクセスすることはできない
+
+Service Workerから
+Webページ側のDOMに直接アクセスはできません。
+DOMの操作はWebページに行ってもらいます。
+
+状態の永続化
+
+Service Workerは必要なときに起動するので、
+イベントハンドリング中になにか値を変数に保持しておいたとしても、
+次のイベントハンドリングの際には消えてしまいます。
+そのため、イベントの間で持続する情報を保持したい場合にはIndexedDBを使う必要があります。
+複数のページ間でのデータのやり取りが手軽にできるものではないと思っておいたほうがよいでしょう。
+
+# Service Workerの登録
