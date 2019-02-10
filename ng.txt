@@ -266,314 +266,77 @@ ViewとModelの双方向バインドを実現するための根幹的な仕組�
 ディレクティブは、開発者から見ると、Templateの要素・属性として現れる。
 ----------------
 
-列挙型
-
-JavaScriptが元々備えている型ではないものの、
-TypeScript仕様の中では基本的な型として位置付けられているものに列挙型があります。
-列挙型というのは整数の連番に名前を割り振ったリストのようなものです。
-
-書き方は以下のように
-num 識別子 { 列挙する内容, ... }となっています。
-この例では、Menuという識別子で列挙型を定義した上で、
-その列挙型Menuを引数に受け取ることを明示した関数cookを定義してみました。
-
-enum Menu {
-  Onigiri,
-  Misoshiru,
-  TamagoYaki
-}
-
-function cook(menu: Menu) {
-  switch(menu) {
-    case Menu.Onigiri:
-      // ...
-      break;
-    case Menu.Misoshiru:
-      // ...
-      break;
-    case Menu.TamagoYaki:
-      // ...
-      break;
-    default:
-      // ...
-      break;
-  }
-}
-
-cook(Menu.Onigiri);
-
-Menu.Onigiriに格納されているのは数値の0で、
-Menu.Misoshiruは1、
-Menu.TamagoYakiは2と連番が付与されています。
-つまり、このswitch文は
-整数で条件分岐をしていることになります。
-ですが、case 0: ... case 1: ...と数値で書かれてもなんのことかわからなくなってしまいます。
-
-そうしたときに整数の連番にラベルをつけられると、わかりやすくて便利というわけです。
-
-クラス
-
-class Person {
-    name:string;
-    age:number;
-
-    constructor(name:string, age:number) {
-        this.name = name;
-        this.age = age;
-    }
-
-    say():void {
-        console.log("Hello, I'm " + this.name + ".");
-    }
-}
-
-インスタンスフィールドに
-name、ageをそれぞれstring、numberの型注釈を付けて定義、
-コンストラクタは、この2つのフィールドに受け取った引数を渡します。
-
-インスタンスメソッドの例としてsay()も定義してみました。
-文法の細かい点としては、
-メソッドの定義にfunctionのキーワードは不要となっています。
-
-このとき生成されるJavaScriptのコードは次のようになり、
-コンストラクタとプロトタイプオブジェクトの定義を行う関数を定義、
-即時実行した結果を変数Personに代入する方式となっています。
-
-var Person = (function () {
-    function Person(name, age) {
-        this.name = name;
-        this.age = age;
-    }
-    Person.prototype.say = function () {
-        console.log("Hello, I'm " + this.name + ".");
-    };
-    return Person;
-})();
-
-またこのとき、
-Personという型も新たに定義されたことになっており、
-これのインスタンスはPerson型を持つことになります。
-ですので、
-Personクラスのインスタンスを受け取るように制約を設けたいという場合に、
-次のように型注釈としてPersonという値を使うことができます。
-
-var john: Person = new Employee("john", 22);
-
-そして、この例はもう少し簡潔に書くこともできます。
-コンストラクタが、引数にインスタンスフィールドの初期値を取る場合、
-そのフィールドの宣言は省略することができます。
-どういうことかコードで示したものが、次の例になります。
-
-この定義方法によって
-フィールドの宣言はなくなりましたが、
-これでも上と同じJavaScriptコードが生成されます。
-引数の前に加えられたpublicはアクセス修飾子というものです
-
-# アクセス修飾子
-
-次に、コンストラクタの引数に加えられたpublicについてです。
-ここでは他にprivateという修飾子も指定でき、
-これが、そのフィールドへの外部からのアクセス可否を指定するものになります。
-
-例えば、ageフィールド用の引数がprivate age:numberという受け取り方になっていた場合、
-インスタンスからそのフィールドにアクセスすることはできません。
-
-var john: Person = new Person("john", 32);
-console.log(bob.age);
-// =>error TS2107: 'Person.age' is inaccessible.
-
-こうして直接アクセスしてもらいたくないフィールドを明示的にprivateの記述で示し、
-実際の挙動としてもこれを防ぐことができます。
-
-なお、アクセス修飾子のデフォルトはpublicであり、
-何も指定しない場合は自動的にこちらが宣言されたものとして扱われます。
-
-この場合でも、生成されるJavaScriptのコードに変化がおこるわけではありません。
-生成コードにプライベートなフィールドを用意する仕組みが加えられるわけではなく、
-それよりも前の段階で、
-TypeScriptのコンパイラが
-プライベートへのアクセスを見つけて
-エラーを伝えるという働きをしています。
-
-# static修飾子
-
-インスタンスではなく、
-クラスに関連付けられたフィールドやメソッドを定義するには、
-次のようにstaticの修飾子を用います。
-
-class Utils {
-    static benri(str:string):void {
-        // 便利ななにか
-    }
-
-    static sugokuBenri(num:number):void {
-        // すごく便利な何か
-    }
-
-    static HOGE_ID:number = 123;
-}
-
-このときに生成されるJavaScriptのコードは以下のようになっていて、Utils.benri = ...のようにコンストラクタそのものにメソッドが追加されていることがわかります。
-
-var Utils = (function () {
-    function Utils() {
-    }
-    Utils.benri = function (str) {
-        // 便利ななにか
-    };
-
-    Utils.sugokuBenri = function (num) {
-        // すごく便利な何か
-    };
-
-    Utils.HOGE_ID = 123;
-    return Utils;
-})();
-
-こうしたクラスメソッドやクラスフィールドは、
-そのクラスと関係が強いので一緒にしておきたいけれど、
-個々のインスタンスに持たせる必要はないといった定数、
-あるいは同様に、個々のインスタンスフィールドを利用していないメソッド、
-といったものを定義したいときに活用することができます。
-
-# アクセサ
-
-フィールドのセッター・ゲッターメソッドを定義するset、getといったキーワードを使うこともできます。
-この機能はインスタンスフィールドへの値の代入時に
-セッター・ゲッターと呼ばれるメソッドを経由させることを可能にします。
-
-使用場面としては、
-プライベートにしたフィールドと併せて用いることで、
-インスタンスのフィールドへ直接アクセスされることを禁止して、
-セッター・ゲッターメソッドを経由したアクセス方法にまとめることができます。
-
-こうしておくことで、
-あるクラスに内部構造の変更が発生した場合でも、
-セッター・ゲッターメソッドの処理を修正すれば、
-そのフィールドにアクセスしているさまざまなコードは
-変更をせずに済むといった利点があります。
-
-ただし、これを使用する場合、
-ECMAScript5仕様であるObject.defineProperty()の使われたJavaScriptコードが生成されることになります。
-併せて、コンパイル時のオプションに--target ES5を指定する必要もあります。
-
-それでは、コードを見ていきましょう。
-先ほどのクラスを少し変えて、
-プライベートなフィールド_ageに対する窓口となるセッターset age(age:number) {...}と
-ゲッターget age():number {...}を定義してみました。
-このとき引数と戻り値の型注釈は省略できません。
-また、当然ですが同じ型を指定する必要があります。
-
-lass Person {
-    constructor(public name:string, private _age:number) {
-    }
-
-    set age(age:number) {
-        console.log("set " + age);
-        this._age = age;
-    }
-
-    get age():number {
-        console.log("get " + this._age);
-        return this._age;
-    }
-}
-
-var bob:Person = new Person("Bob", 32);
-var age = bob.age;1 // Person.get age()
-bob.age = age + 1;  // Person.set age()
-
-bob.ageの値を読もうとすると、
-ゲッターメソッド内へ目印に挟んでおいたconsole.log("get " + this._age);が呼ばれています。
-値を代入しようとした場合も同様に、セッターメソッド側に挟んだ目印のconsole.log(...);も呼ばれていて、
-フィールドへの参照や代入を行うごとにセッター・ゲッターメソッドが呼ばれていることがわかります。
-
-# モジュール
-
-次はモジュールです。
-「モジュール」と呼ばれる仕組みは他の言語にもあります。
-TypeScriptにおけるモジュールというのは、
-単純にオブジェクトを定義して、
-その中で変数や関数、クラスを整理していたのをもっと扱いやすくしたものになります。
-
-JavaScriptを書いていて、
-名前空間を分けておきたいといった場合に、
-一番簡単な方法というのが次の例だと思います。
-
-var App = {};
-App.Model = {};
-App.View = {};
-
-これが、TypeScriptでは次のように表現することができます。
-
-module App {
-    module Model {
-        ...
-    }
-    module View {
-        ...
-    }
-}
-
-実際にはmoduleだけ書いたところで中身がないと、
-実際のJavaScriptコードには
-何も生成されていないので、
-App.ModelとApp.Viewにクラスを定義してみましょう。
-
-さきほどから登場しているPersonクラスを、
-状態を管理するApp.Model.Personと、
-画面へのレンダリングを行うApp.View.Person
-という役割にわけるとしたら、
-という例でそれぞれ定義してみます。
-
-module App.Model {
-  export class Person {
-    constructor(private name: string, private age: number) {
-    }
-    say(): void {
-      console.log("hello" + this.name);
-    }
-  }
-}
-
-module App.View {
-  export class Person {
-    constructor(private model: App.Model.Person) {
-    }
-  }
-}
-
-インスタンスは以下のように作ることができます。
-
-var bob = new App.Model.Person("bob", 32);
-console.log(bob);
-
-var bobview = new App.Model.Person(bob);
-console.log(bobview);
-
-moduleの階層を表現するには、
-最初の例のように入れ子にした記述をしてもよいですし、
-上のように.ドットで繋げた記述をすることもできます。
-
-App.Model.Personはこれまでの例と同様の形で、
-App.View.Personは
-App.Model.Personのインスタンスをコンストラクタの引数に取るように定義してみました。
-モジュール内に定義されたクラスの型は、
-モジュール名を含めたApp.Model.Personといった形で定義されています。
-App.View.Personクラスのコンストラクタ引数にある型注釈が
-private model:App.Model.Personとなっていて、
-それに従っていることがわかると思います。
-
-この例でモジュール内に定義したApp.Model.Personは、
-デフォルトでは同じモジュールである
-App.Modelの中に定義した関数やクラスからしかアクセスすることはできません。
-それを解消して、例えばApp.Viewモジュールからも参照できるようにするには
-exportを、モジュール内のそれぞれの値の定義の先頭に付けてあげます。
-
-モジュールについても、
-最初に挙げたvar App = {};の方法でもそうですが、
-こうして名前空間を整理していくことは、
-コードが多くなることが判っていて、ファイルやクラス・関数を分割していきたい場合、
-コードのわかりやすさを求める上で有効な方法です。
-TypeScriptがとりわけ大きな規模の案件に向くというのは、
-こういった手法をサポートする仕組みを備えている点からも実感することができるのではないかと思います。
+# コントローラーのネスト
+
+また、コントローラーは、自身の子孫要素に別のコントローラーを作ることもできます。
+
+<div ng-controller="ParentCtrl">
+  <input type="text" ng-model="name">
+  <div ng-controller="ChildCtrl">
+    <div>Hello {{name}}!</div>
+  </div>
+</div>
+
+app.controller('ParentCtrl', function($scope) {
+});
+
+app.controller('ChildCtrl', function($scope) {
+});
+
+ネストした場合でも、
+親子のコントローラーはそれぞれ独立したスコープを持ちます。
+上記のHTMLの、ng-model="name"のnameと、
+Hello {{name}}!のnameは、
+それぞれのコントローラーの$scopeを参照します。
+ただし、$scopeオブジェクトそのものは、
+親コントローラーから子コントローラーへと継承されます。
+
+ParentCtrlのinputの値を変更すると、
+ChildCtrlへと変更が伝わっているのがわかると思います。
+ChildCtrlではParentCtrlの$scopeを継承しているため、
+ParentCtrlで変更された$scope.nameプロパティの値の変更は、
+自動的にChildCtrlの$scope.nameへと引き継がれるのです。
+
+#
+
+ng-controllerの属性値を、[ControllerName] as [propertyName]と書くことで、
+コントローラーのインスタンスを、[propertyName]で受け取ることができます。
+これをController As記法と言います。
+
+<div ng-controller="ParentCtrl as parent">
+  <input type="text" ng-model="parent.name">
+  <div ng-controller="ChildCtrl as child">
+    <input type="text" ng-model="parent.name">
+    <div>Hello {{parent.name}}!</div>
+  </div>
+</div>
+
+app.controller('ParentCtrl', function() {
+  this.name = 'hokaccha';
+});
+
+app.controller('ChildCtrl', function() {
+});
+
+# DOMイベント
+
+AngularJSでは、
+clickやsubmitなど、DOM要素を対象としたイベントを扱う場合、
+コントローラーのメソッドに関数（イベントハンドラ）を定義し、
+それをイベントが発生したときに呼び出すことができます。
+
+div ng-controller="MainCtrl as vm">
+  <input type="text" ng-model="vm.name">
+  <button ng-click="vm.onClickBtn()">reverse</button>
+  <div>Hello {{vm.name}}!</div>
+</div>
+
+app.controller('MainCtrl', function() {
+  var vm = this;
+  vm.name = 'hokaccha';
+
+  vm.onClickBtn = function() {
+    // 文字列を反対にする
+    vm.name = vm.name.split('').reverse().join('');
+  };
+});

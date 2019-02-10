@@ -215,3 +215,578 @@ person = {
   age: 30,
   country: "Japan"
 }
+
+列挙型
+
+JavaScriptが元々備えている型ではないものの、
+TypeScript仕様の中では基本的な型として位置付けられているものに列挙型があります。
+列挙型というのは整数の連番に名前を割り振ったリストのようなものです。
+
+書き方は以下のように
+num 識別子 { 列挙する内容, ... }となっています。
+この例では、Menuという識別子で列挙型を定義した上で、
+その列挙型Menuを引数に受け取ることを明示した関数cookを定義してみました。
+
+enum Menu {
+  Onigiri,
+  Misoshiru,
+  TamagoYaki
+}
+
+function cook(menu: Menu) {
+  switch(menu) {
+    case Menu.Onigiri:
+      // ...
+      break;
+    case Menu.Misoshiru:
+      // ...
+      break;
+    case Menu.TamagoYaki:
+      // ...
+      break;
+    default:
+      // ...
+      break;
+  }
+}
+
+cook(Menu.Onigiri);
+
+Menu.Onigiriに格納されているのは数値の0で、
+Menu.Misoshiruは1、
+Menu.TamagoYakiは2と連番が付与されています。
+つまり、このswitch文は
+整数で条件分岐をしていることになります。
+ですが、case 0: ... case 1: ...と数値で書かれてもなんのことかわからなくなってしまいます。
+
+そうしたときに整数の連番にラベルをつけられると、わかりやすくて便利というわけです。
+
+クラス
+
+class Person {
+    name:string;
+    age:number;
+
+    constructor(name:string, age:number) {
+        this.name = name;
+        this.age = age;
+    }
+
+    say():void {
+        console.log("Hello, I'm " + this.name + ".");
+    }
+}
+
+インスタンスフィールドに
+name、ageをそれぞれstring、numberの型注釈を付けて定義、
+コンストラクタは、この2つのフィールドに受け取った引数を渡します。
+
+インスタンスメソッドの例としてsay()も定義してみました。
+文法の細かい点としては、
+メソッドの定義にfunctionのキーワードは不要となっています。
+
+このとき生成されるJavaScriptのコードは次のようになり、
+コンストラクタとプロトタイプオブジェクトの定義を行う関数を定義、
+即時実行した結果を変数Personに代入する方式となっています。
+
+var Person = (function () {
+    function Person(name, age) {
+        this.name = name;
+        this.age = age;
+    }
+    Person.prototype.say = function () {
+        console.log("Hello, I'm " + this.name + ".");
+    };
+    return Person;
+})();
+
+またこのとき、
+Personという型も新たに定義されたことになっており、
+これのインスタンスはPerson型を持つことになります。
+ですので、
+Personクラスのインスタンスを受け取るように制約を設けたいという場合に、
+次のように型注釈としてPersonという値を使うことができます。
+
+var john: Person = new Employee("john", 22);
+
+そして、この例はもう少し簡潔に書くこともできます。
+コンストラクタが、引数にインスタンスフィールドの初期値を取る場合、
+そのフィールドの宣言は省略することができます。
+どういうことかコードで示したものが、次の例になります。
+
+この定義方法によって
+フィールドの宣言はなくなりましたが、
+これでも上と同じJavaScriptコードが生成されます。
+引数の前に加えられたpublicはアクセス修飾子というものです
+
+# アクセス修飾子
+
+次に、コンストラクタの引数に加えられたpublicについてです。
+ここでは他にprivateという修飾子も指定でき、
+これが、そのフィールドへの外部からのアクセス可否を指定するものになります。
+
+例えば、ageフィールド用の引数がprivate age:numberという受け取り方になっていた場合、
+インスタンスからそのフィールドにアクセスすることはできません。
+
+var john: Person = new Person("john", 32);
+console.log(bob.age);
+// =>error TS2107: 'Person.age' is inaccessible.
+
+こうして直接アクセスしてもらいたくないフィールドを明示的にprivateの記述で示し、
+実際の挙動としてもこれを防ぐことができます。
+
+なお、アクセス修飾子のデフォルトはpublicであり、
+何も指定しない場合は自動的にこちらが宣言されたものとして扱われます。
+
+この場合でも、生成されるJavaScriptのコードに変化がおこるわけではありません。
+生成コードにプライベートなフィールドを用意する仕組みが加えられるわけではなく、
+それよりも前の段階で、
+TypeScriptのコンパイラが
+プライベートへのアクセスを見つけて
+エラーを伝えるという働きをしています。
+
+# static修飾子
+
+インスタンスではなく、
+クラスに関連付けられたフィールドやメソッドを定義するには、
+次のようにstaticの修飾子を用います。
+
+class Utils {
+    static benri(str:string):void {
+        // 便利ななにか
+    }
+
+    static sugokuBenri(num:number):void {
+        // すごく便利な何か
+    }
+
+    static HOGE_ID:number = 123;
+}
+
+このときに生成されるJavaScriptのコードは以下のようになっていて、Utils.benri = ...のようにコンストラクタそのものにメソッドが追加されていることがわかります。
+
+var Utils = (function () {
+    function Utils() {
+    }
+    Utils.benri = function (str) {
+        // 便利ななにか
+    };
+
+    Utils.sugokuBenri = function (num) {
+        // すごく便利な何か
+    };
+
+    Utils.HOGE_ID = 123;
+    return Utils;
+})();
+
+こうしたクラスメソッドやクラスフィールドは、
+そのクラスと関係が強いので一緒にしておきたいけれど、
+個々のインスタンスに持たせる必要はないといった定数、
+あるいは同様に、個々のインスタンスフィールドを利用していないメソッド、
+といったものを定義したいときに活用することができます。
+
+# アクセサ
+
+フィールドのセッター・ゲッターメソッドを定義するset、getといったキーワードを使うこともできます。
+この機能はインスタンスフィールドへの値の代入時に
+セッター・ゲッターと呼ばれるメソッドを経由させることを可能にします。
+
+使用場面としては、
+プライベートにしたフィールドと併せて用いることで、
+インスタンスのフィールドへ直接アクセスされることを禁止して、
+セッター・ゲッターメソッドを経由したアクセス方法にまとめることができます。
+
+こうしておくことで、
+あるクラスに内部構造の変更が発生した場合でも、
+セッター・ゲッターメソッドの処理を修正すれば、
+そのフィールドにアクセスしているさまざまなコードは
+変更をせずに済むといった利点があります。
+
+ただし、これを使用する場合、
+ECMAScript5仕様であるObject.defineProperty()の使われたJavaScriptコードが生成されることになります。
+併せて、コンパイル時のオプションに--target ES5を指定する必要もあります。
+
+それでは、コードを見ていきましょう。
+先ほどのクラスを少し変えて、
+プライベートなフィールド_ageに対する窓口となるセッターset age(age:number) {...}と
+ゲッターget age():number {...}を定義してみました。
+このとき引数と戻り値の型注釈は省略できません。
+また、当然ですが同じ型を指定する必要があります。
+
+lass Person {
+    constructor(public name:string, private _age:number) {
+    }
+
+    set age(age:number) {
+        console.log("set " + age);
+        this._age = age;
+    }
+
+    get age():number {
+        console.log("get " + this._age);
+        return this._age;
+    }
+}
+
+var bob:Person = new Person("Bob", 32);
+var age = bob.age;1 // Person.get age()
+bob.age = age + 1;  // Person.set age()
+
+bob.ageの値を読もうとすると、
+ゲッターメソッド内へ目印に挟んでおいたconsole.log("get " + this._age);が呼ばれています。
+値を代入しようとした場合も同様に、セッターメソッド側に挟んだ目印のconsole.log(...);も呼ばれていて、
+フィールドへの参照や代入を行うごとにセッター・ゲッターメソッドが呼ばれていることがわかります。
+
+# モジュール
+
+次はモジュールです。
+「モジュール」と呼ばれる仕組みは他の言語にもあります。
+TypeScriptにおけるモジュールというのは、
+単純にオブジェクトを定義して、
+その中で変数や関数、クラスを整理していたのをもっと扱いやすくしたものになります。
+
+JavaScriptを書いていて、
+名前空間を分けておきたいといった場合に、
+一番簡単な方法というのが次の例だと思います。
+
+var App = {};
+App.Model = {};
+App.View = {};
+
+これが、TypeScriptでは次のように表現することができます。
+
+module App {
+    module Model {
+        ...
+    }
+    module View {
+        ...
+    }
+}
+
+実際にはmoduleだけ書いたところで中身がないと、
+実際のJavaScriptコードには
+何も生成されていないので、
+App.ModelとApp.Viewにクラスを定義してみましょう。
+
+さきほどから登場しているPersonクラスを、
+状態を管理するApp.Model.Personと、
+画面へのレンダリングを行うApp.View.Person
+という役割にわけるとしたら、
+という例でそれぞれ定義してみます。
+
+module App.Model {
+  export class Person {
+    constructor(private name: string, private age: number) {
+    }
+    say(): void {
+      console.log("hello" + this.name);
+    }
+  }
+}
+
+module App.View {
+  export class Person {
+    constructor(private model: App.Model.Person) {
+    }
+  }
+}
+
+インスタンスは以下のように作ることができます。
+
+var bob = new App.Model.Person("bob", 32);
+console.log(bob);
+
+var bobview = new App.Model.Person(bob);
+console.log(bobview);
+
+moduleの階層を表現するには、
+最初の例のように入れ子にした記述をしてもよいですし、
+上のように.ドットで繋げた記述をすることもできます。
+
+App.Model.Personはこれまでの例と同様の形で、
+App.View.Personは
+App.Model.Personのインスタンスをコンストラクタの引数に取るように定義してみました。
+モジュール内に定義されたクラスの型は、
+モジュール名を含めたApp.Model.Personといった形で定義されています。
+App.View.Personクラスのコンストラクタ引数にある型注釈が
+private model:App.Model.Personとなっていて、
+それに従っていることがわかると思います。
+
+この例でモジュール内に定義したApp.Model.Personは、
+デフォルトでは同じモジュールである
+App.Modelの中に定義した関数やクラスからしかアクセスすることはできません。
+それを解消して、例えばApp.Viewモジュールからも参照できるようにするには
+exportを、モジュール内のそれぞれの値の定義の先頭に付けてあげます。
+
+モジュールについても、
+最初に挙げたvar App = {};の方法でもそうですが、
+こうして名前空間を整理していくことは、
+コードが多くなることが判っていて、ファイルやクラス・関数を分割していきたい場合、
+コードのわかりやすさを求める上で有効な方法です。
+TypeScriptがとりわけ大きな規模の案件に向くというのは、
+こういった手法をサポートする仕組みを備えている点からも実感することができるのではないかと思います。
+
+インターフェース
+
+インターフェースは、
+オブジェクトやクラスの中身がどんなフィールドを持っているかをあらかじめ定義するものです。
+
+インターフェースには
+「私はこのメソッドを持っています」といったような宣言しか書かれていません。
+実際に行う処理の実装はまた別の場所、
+その型を持つオブジェクトの定義や、
+その実装を持つクラスの定義がされる場所で行われます。
+
+いわば仕様と実装のようなものです。
+例えば、インターフェースには「私はhogeというメソッドを持っていて、こんな働きをします」
+という仕様の宣言だけが書かれています。
+
+そして、このインターフェースの実装を宣言したクラスがあったとすると、
+他のプログラマがそれを見て
+「このクラスのインターフェースにはhogeメソッドがあるからこんなことができるぞ」というふうに把握をするわけです。
+このときにインターフェースは、必ずしも実装の隅々を把握させる必要はありません。
+「このクラスはこんなメソッドを持っていて、こういう仕事をする」と示すことができればよいと考えます。
+
+前回のPersonクラスの持つフィールドからインターフェースを表してみるとこのようになります。
+
+interface IPerson {
+  name: string;
+  age:  number;
+  say:()=>void;
+}
+
+say:()=>void;という記述は、
+関数sayの戻り値の型はvoidという指定になり、
+これは戻り値を持たないことを示します。
+もし引数、messageを受け取り、その戻り値の型がstringであるときには
+say:(message:string)=>string
+という記述になります。
+
+このとき型としてIPerson*を持つ変数Personは
+name、age、sayを持っていることが求められます。
+そうでなければコンパイルエラーとなります。
+
+var person:IPerson = {
+  name: "Bob",
+  age: 32,
+  say: function() {
+    console.log("Hello, I'm " + this.name + ".");
+  }
+}
+
+あるいは、インターフェースIPersonを持ったクラスPersonがあった場合、
+そのクラスも同様にname、age、sayを持つことが求められます。
+
+class Person implements IPerson {
+  constructor(public name: string, public age: number) {
+  }
+  say() {
+    console.log(this.name):
+  }
+}
+
+クラスがインターフェースの実装となる場合には
+class クラス名 implements インターフェース名という記述をします。
+
+インターフェースの継承を行うことも可能です。
+IPersonを継承して、IEmployeeというインターフェースを定義してみました。
+
+interface IEmployee eztends IPerson {
+  location: string;
+  skill: string[];
+}
+
+こうしてできたインターフェースIEmployeeも前述したIPersonの例と同じように、
+オブジェクトやクラスに適用して使うことができます。
+
+# ジェネリクス
+
+次にジェネリクスの紹介です。
+これは、関数などの呼び出し時に、
+型注釈もそれ用の引数で受け取って処理中に使用するような挙動を可能にします。
+
+例えば、配列の最初の値を返す、次のような関数があったとします。
+
+function getFirst(list) {
+    return list[0];
+}
+
+これに型注釈を加えようとしても、
+引数として渡されるlistの中身の型は、
+はたしてnumberなのか、あるいはstringなのかといった問題が起こります。
+もちろん限定的な状況では型を決め打ちしてもよいのですが、
+汎用性を持たせる場合、
+ここではanyを使うほかなくなってしまうでしょう。
+number用にはgetFirstNumber(list:number[])を用意して
+string用には……といって、
+わざわざ配列の中身の型に応じた関数を用意するのも現実的ではありません。
+
+function getFirst(list:any[]):any {
+    return list[0];
+}
+
+そこで役に立つのがジェネリクスです。
+今、仕方なくanyとしておいた型注釈に対して、
+この関数の呼び出し時に任意の型を渡すことができるようになります。
+
+これがジェネリクスを使ったコードになります。
+
+function getFirst<T>(list:T[]):T {
+    return list[0];
+}
+
+引数の括弧の前に<T>という記述を足しました。
+そしてanyの型注釈もTに置き換わっています。
+
+これを呼び出すコードを見てみましょう。関数getFirstに数値型の配列を渡します。
+
+var first = getFirst<number>([1, 2, 3])
+
+関数を呼び出す際の引数の括弧の前にあるnumberの記述で、
+関数に対して型も与えて呼び出しています。
+関数getFirstはその型指定を受け取って、
+Tと置かれていた箇所はnumberに置き換わり、ちょうど以下のような挙動をとることになります。
+
+function getFirst(list:number[]):number {
+    return list[0];
+}
+
+これは関数の例ですが、クラスの定義でも同様にジェネリクスは使用可能です。
+
+class List<T> {
+    constructor(public list:T[]) {
+
+    }
+
+    push(value:T) {
+        this.list.push(value);
+    }
+
+    pop():T {
+        return this.list.pop();
+    }
+}
+
+class クラス名<T>の記述で始まり、
+あとは前述した関数の場合と同じ要領です。
+
+インスタンス初期化時に渡す型も同様に引数の括弧の前に記述します。
+以下のように<string>を指定することで、
+インスタンスlistはstring型の配列を操作するクラスとして初期化されました。
+
+var list = new List<string>(['Alice', 'Bob']);
+list.push('Charlie');
+
+# アンビエント宣言
+
+ここまで、
+純粋にTypeScriptの書き方だけを取り上げてきましたが、
+実際に何か作る場合には、たいてい、既存のライブラリを使うことになるでしょう。
+その際に問題になるのが、ライブラリが持つであろうさまざまな型をどうするのか？　ということです。
+
+例えば、jQueryが持っているさまざまなメソッドが受け取る引数や、
+その戻り値にも型注釈は付けられるはずです。JQuery型というものもあると便利でしょう。
+しかしjQueryは最初からTypeScript用に書かれているわけではないので、
+TypeScript上で型情報を活かして利用することはできないように思われます。
+
+また、そもそもjQueryの$関数自体、
+TypeScriptは定義されていること自体知らないので、
+なんの用意もないままでは、次のようなコードはコンパイルすることができません。
+
+// TypeScriptが `$` 関数を知らないのでコンパイルエラーとなる
+
+var $el = $('.some-element');
+// => Could not find symbol '$'.
+
+そこで、アンビエント宣言を使います。
+これを行うことによって既存のJavaScriptに型注釈を付け加えることができます。
+次のように、先頭にdeclareを付けた上で変数や、関数、クラスの定義を記述します。
+
+declare var hoge:string;
+
+declare function fuga():string;
+
+declare class Piyo {
+    name:string;
+    piyo():void;
+}
+
+この記述は
+生成されるJavaScriptコードに一切現れず、
+TypeScriptが型情報を参照するために使用されます。
+例えば1行目の宣言で、
+TypeScriptのコンパイラは
+「変数hogeがあって、それはstring型である」ということだけを把握します。
+
+というわけで、
+最低限これだけのコードがあれば、先ほどのコンパイルエラーを防ぐことができます。
+
+// TypeScriptに `$` フィールドの存在だけを教える
+declare var $:any;
+
+var $el = $('.some-element');
+
+しかし、これはまだエラーを封じ込んだだけで、
+型付けの恩恵が受けられたわけではありません。
+とはいっても、jQueryが備えるさまざまなAPIに対して細かな型注釈を定義していくのは大変です。
+
+そこで助かるのが、
+さまざまなライブラリの型定義を収めたリポジトリの存在です。
+
+borisyankov/DefinitelyTyped
+https://github.com/borisyankov/DefinitelyTyped
+
+ここにjQueryやBackboneを始め、
+多くのライブラリの型定義を記述したファイルがコミットされています。
+また、リポジトリのREADMEファイルには、"Requested Definitions"として、
+提供を求めているライブラリの型定義の一覧も添えられています。
+
+こういった型定義の提供されているライブラリは便利に扱えます。
+しかし、これが提供されていないライブラリやメソッドを使用する場合には、やはり、面倒なこととなってしまうところもあります。
+
+こういった定義ファイルはそのまま利用して役立てたり、
+自分が書くTypeScriptの記法の参考にしてもよいでしょう。
+
+また、実は、JavaScriptが標準で備えるオブジェクトなどのための定義ファイルもあります。
+TypeScriptは、
+このlib.d.tsファイルを使ってJavaScriptの基本的な型の定義を得ています。
+
+TypeScript - Source Code
+http://typescript.codeplex.com/SourceControl/latest#bin/lib.d.ts
+
+# 外部スクリプトの参照
+
+こうして、ライブラリを使えるようになったのはよいのですが、
+型の定義やクラス、モジュール、関数や変数、
+これらの定義をTypeScriptが認識してくれるのは、
+こちらが何も用意しなければ同じファイル内だけとなります。
+
+そこで、ほかのファイルで定義されている情報を読み込めるようにしましょう。
+先に紹介をした"DefinitelyTyped"のリポジトリから、
+jQuery用の定義ファイル"jquery.d.ts"を読み込んでみます。
+
+/// <reference path="./jquery.d.ts" />
+
+このように、/// <reference path="他ファイルへのパス" />と記述することで、
+TypeScriptのコンパイラは、
+参照したパスにあるファイルの定義情報を参照してくれます。
+
+これは、あくまでTypeScriptが型情報などを参照するだけです。
+この位置にコードが展開されるという機能ではないため、
+<script>でそれぞれのjsファイルをHTML上で読み込んだり、
+あるいはminifyをしたりということは自分で行う必要があります。
+
+また、TypeScriptを使ってプログラムを書く場面というのは、
+気軽にコードを書き始めるようなシチュエーションでは、おそらくないでしょう。
+大きめの規模になることがわかっているプロジェクトで、
+事前の設計をうまく行うことによって、
+コードの堅牢さや書きやすさに繋がるように堅く作り上げていくようなスタイルになっていくと思います。
+
+ほかに備えている型の機能も、オブジェクト指向言語の素養が求められるものが揃っています。
+私が普段、主に書いているJavaScriptは、一応、オブジェクト指向といえるのですが、
+この辺りは、ActionScriptやJavaといった、
+より型の定義が厳密な言語を経験されている人の方が、
+よりうまく使いこなせるのではないでしょうか。
+インターフェースやジェネリクスなどの機能は、おそらくJavaに近いところがあると思われます。
