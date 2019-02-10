@@ -51,3 +51,167 @@ CoffeeScriptはJavaScriptの冗長さを取り払って簡潔な書き方がで�
 一方、TypeScriptは書き方の変化にとどまらず、
 新しい機能や、静的型付けなど、
 元のJavaScriptとは違う概念も持ち込まれており、どちらかというと大規模開発向きの特質があります。
+
+# 静的型付け
+
+コンパイル時に決まる場合は静的型付け、
+実行時に決まる場合は動的型付けになります。
+
+静的型付けの言語では、この変数は文字列型です、と宣言したらもうその変数には文字列の値しか入れられません。
+もし違う型の値を入れようとすればコンパイルエラーが出てしまいます。
+一方、動的な型付けの言語では、変数にどんな型の値でも入れることができます。
+
+JavaScriptは後者の動的型付けに分類される言語です。
+ですからJavaScriptは、変数にはどんな型の値でも入れることができます。
+
+var hoge = 'hoge';
+hoge = 123;
+
+TypeScriptは前述したように静的型付けですから、
+JavaScriptと同じことはできずにコンパイルエラーとなってしまいます。
+
+var hoge: string = 'hoge';
+hoge = 123;
+
+=> error TS2011: Cannot convert 'number' to 'string'.
+
+JavaScript本来の、さっと書いてすぐ実行というような手軽さは薄まってしまいます。
+コンパイルエラーが出たらすべて解決しなければいけません。
+型を一度決めたら、そこではもう他の型を受け付けないので、
+実行時の段階で型を調べて、それから動作を変えるような柔軟性もありません。
+
+静的型付けは大規模開発に向いていると評される
+
+TypeScriptのソースコードがどんなものか、一例としてPersonクラスを定義してみます。
+
+clss Person {
+  name: string;
+  age:  number;
+
+  constructor(name: string, age: number) {
+    this.name = name;
+    this.age = age;
+  }
+}
+
+書き出されるJavaScriptは以下のようになります。
+
+var Person = (function () {
+  function Person(name, age) {
+    this.name = name;
+    this.age = age;
+  }
+  return Person
+})();
+
+文法などは追って詳しく見ていきますが、
+ぱっと見たところ、ECMAScript6のようなクラス定義のしかたに、
+型の指定が加わったような形になっています。
+
+JavaScriptのコード側には型の指定をしたような痕跡も、
+目に見える形で現れるといったことはありません。
+型の指定を読むのはあくまでもTypeScriptのコンパイラなのです。
+当たり前ですが、最終的に書き出すのがJavaScriptである以上、
+JavaScriptの仕様を超えたコードは出てきません。
+
+TypeScriptの公式サイトにブラウザ上でTypeScriptを書いて、
+出力されるJavaScriptのコードを確認できるページが用意されています。
+とりあえずTypeScriptを試してみるにはここが一番手っ取り早いです。
+
+TypeScriptのコンパイラは
+Node.jsのパッケージマネージャ、npmを経由してインストールできます。
+
+npm install -g typescript
+
+これでtscコマンドが使えるようになります。
+試しに前述したTypeScriptのコードをローカル環境でコンパイルしてみましょう。
+TypeScriptの拡張子は *.ts です。person.ts という名前でコードを保存したら、
+このファイルがあるディレクトリへ移動して以下のコマンドを実行します。
+
+tsc person.ts
+
+これで、同じディレクトリに person.js が書き出されます。
+
+var x: number;
+x = 1;
+
+変数名の後に続けて型の指定をしている: numberの部分は
+type annotation、あるいは型注釈と呼ばれるものです。
+
+代入を一緒に行ってもかまいません。
+var x: number = 1;
+
+any型を宣言することで、
+変数xはどんな値でも代入できるものとして定義されます。
+数値の代入のあとに文字列を代入しても、コンパイルエラーは発生しません。
+
+あるいは、変数定義時に型の定義をせず、
+値を何も代入しない、これだけの記述でも型推論でanyと判断されます。
+
+var x;
+
+基本的な型
+
+TypeScriptの基本的な型としてJavaScriptも元々持っているNumber、
+Boolean、String、Null、Undefinedを扱うことができます。
+
+このうち、Number、Boolean、Stringの型注釈はそれぞれnumber、boolean、stringと書きます。
+Null、Undefinedについては型注釈を使って新たに変数を定義することはできません。
+そして、
+変数nullとundefinedはどんな型にも代入できます。
+
+関数と型
+
+関数にも型の仕組みが与えられています。
+
+以下のコードでJavaScriptの関数と違う点は
+stringとvoidの型注釈が加わっているところです。
+
+function log(message: string): void {
+    console.log(message);
+}
+
+仮引数messageの後に付いているstringの型注釈は、
+messageに文字列しか受け付けないという意味になります。
+実際、数値や真偽値などを渡してしまうと、コンパイルの段階でエラーになります。
+
+仮引数の括弧の後ろにあるvoidは、この関数が返す値の型を示しています。
+そして、関数の返す値がそもそもないという場合にvoidの型注釈を用います。
+
+var staff: string[] = ["Alice", "Bob", "Charlie"];
+
+型注釈を丸ごと省略した、
+このような書き方でも型推論が働いて、上のコードと同じように文字列型の配列として決定されます。
+
+var staff = ["Alice", "Bob", "Charlie"];
+
+// var array: any[] = []; と同じ
+var array = [];
+
+// var array: any[] = ["Hello", 123456, true]; と同じ
+var array = ["Hello", 123456, true];
+
+オブジェクトと型
+
+var person: {
+  name: string;
+  age: number;
+}
+
+これまでの例から想像がつくように、違う型の値をプロパティに与えることはできません。
+次の例は、数値が入っていなければいけないperson.ageに、文字列の"30"が入ってしまっているのでコンパイルエラーとなります。
+
+person = {
+  name: "John",
+  age: "30" // <= NG
+}
+
+しかし、余分なプロパティがあってもコンパイルエラーにはなりません。
+例えば次の例では、person.countryというプロパティが余分に代入されていますが、
+nameとageが存在していればよいので、コンパイルエラーにはなりません。
+
+person = {
+  name: "John",
+  age: 30,
+  country: "Japan"
+}
