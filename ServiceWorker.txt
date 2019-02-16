@@ -189,3 +189,37 @@ Service Workerは必要なときに起動するので、
 複数のページ間でのデータのやり取りが手軽にできるものではないと思っておいたほうがよいでしょう。
 
 # Service Workerの登録
+
+Service Workerを登録するには
+Webページ上で動いているJavaScriptから、
+Service Workerとして働く別のJavaScriptファイルを指定します。
+ブラウザに、「これをService Workerとして使ってね」ということを伝えるわけです。
+このときに使うのは
+ServiceWorkerContainerオブジェクトが持つ.register()メソッドです。
+
+ブラウザからは
+navigator.serviceWorker.register()
+で呼び出せます。
+
+構文は次のとおりです。
+
+ServiceWorkerContainer.register(scriptURL, [options])
+
+引数scriptURLには
+Service Workerとして登録するJavaScriptファイルのパスを指定します。
+任意でoptionsに設定オブジェクトを渡すこともできます。
+
+optionsにはいまのところ、
+scopeオプションを指定できます。
+これは第1回に説明したスコープの指定を任意で行うものです。
+省略した場合は、
+Service Workerとして登録される
+JavaScriptファイルの置かれているパスが設定されます。
+
+戻り値はService Workerの登録成否を伝えるPromiseオブジェクトです。
+
+簡単にコードにしてみると次のようになります。
+Service Workerに対応していない環境を無視するように、
+if ('serviceWorker' in navigator) {...}のブロックで囲んでおくとよいでしょう。
+Service Workerとして使うJSファイルの名前はなんでも構いませんが、
+この記事では一律service-worker.jsとしていきます。
