@@ -223,3 +223,61 @@ Service Workerに対応していない環境を無視するように、
 if ('serviceWorker' in navigator) {...}のブロックで囲んでおくとよいでしょう。
 Service Workerとして使うJSファイルの名前はなんでも構いませんが、
 この記事では一律service-worker.jsとしていきます。
+
+if ('serviceWorker' in navigator) {
+  const options = {
+    scope: './'
+  };
+
+  navigator.serviceWorker.register('./service-worker.js', options)
+    .then(registration => {
+      console.log('Service Workerの登録に成功しました。');
+    })
+    .catch(error => {
+      console.error('Service Workerの登録に失敗しました。', error);
+    });
+}
+
+登録の成功時に
+Promiseから受け取るregistration引数には
+ServiceWorkerRegistrationオブジェクトが渡ってきます。
+これはService Workerの登録情報などを持ったオブジェクトです。
+
+ここで、通信がHTTPSではない、
+service-worker.jsが存在しない、
+service-worker.jsに構文エラーがあったりなどすると
+.catch()側のコールバックが呼ばれます。
+
+詳細は順を追って説明していくので、
+service-worker.jsはとりあえず次のようなコードでも構いません。
+これで、何もしないService Workerがインストールされ、
+インストールが成功すると、
+「service-worker.jsが読み込まれました。」とコンソールログに表示されることになります。
+
+console.log('service-worker.jsが読み込まれました。');
+
+この.register()メソッドは
+ブラウザ側でService Workerが登録済みかどうかを調べてくれるので、
+こちらで登録済みかどうかを気にせずに呼び出して構いません。
+登録済みであれば、
+Promiseの結果は登録成功の側に振り分けられ、
+そのコールバックが呼ばれます。
+
+また、service-worker.jsの内容が更新されているかどうかも判定しています。
+新規の登録か、更新されている場合には、
+次節以降に紹介するinstallイベントなどが発生するようになっています。
+
+なお、Service Workerの動作確認には、
+Chromeでいうところのシークレット ウィンドウの機能を使うと便利です。
+古いService Workerやキャッシュが残らないので、
+新しくService Workerを登録した場合の挙動を確認しやすくなります。
+Firefoxの場合は、
+いまのところ同様の機能のプライベートブラウジングで
+Service Workerが使えないようなので、この方法はとれません。
+
+# ブラウザの開発者ツールでService Workerの状況を確認する
+
+Chromeであれば、まずDevToolsを開いて、
+「Application」タブを選択、
+左のメニューから「Service Workers」を選択すれば
+右のパネルに登録されているService Workerの状況が表示されます。
