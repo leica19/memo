@@ -340,3 +340,242 @@ self.addEventListener('install', event => {
     })
   );
 });
+
+もし、インストール中の処理に問題があって、
+このインストールは失敗であるとブラウザに伝えたい場合は、
+.waitUntil()に渡しているPromiseオブジェクトをrejectさせます。
+
+次のコードはinstallイベントを5秒後に失敗させるだけの例です。
+
+self.addEventListener('install', event => {
+  event.waitUntil(
+    new Promise((resolve, reject) => {
+      setTimeout(() => {
+        reject(new Error('インストール失敗'));
+      }, 5000);
+    })
+  );
+});
+
+こうなった場合、
+Service Workerはredundant状態へと遷移して、
+登録は行われず、ブラウザ側に副作用は残しません。
+また再度ページを開くなどしてService Workerが登録されれば
+ブラウザは再びインストールを試みます。
+
+# Service Worker登録方法の未来
+
+今回は安定版としてリリースされている
+ChromeやFirefoxで使える
+Service Workerの登録方法を紹介しました。
+
+一方、最新の仕様ではHTMLの<link>タグを使った方法や、
+HTTPヘッダを使った方法で
+Service Workerの登録が可能であることが書かれています。
+
+たとえばこのようなHTMLを用意するだけで、
+Service Workerを登録できるようになります。
+
+<head>
+  <meta charset="utf-8">
+  <title>Service Worker Example</title>
+  <link rel="serviceworker" href="./service-worker.js" scope="./" />
+</head>
+
+# リリースをキャッシュする
+
+それでは、
+前回紹介したinstallイベント中にリソースをキャッシュとして保存してみましょう。
+この、installイベント中に
+キャッシュを行うパターンは、
+Webページの動作に必要な静的リソース（画像、CSS、JS、フォントなど）のキャッシュに向いています。
+
+キャッシュ周りの操作には
+Cache APIを使う必要があるので、まずはその説明から始めていきます。
+
+Cacheオブジェクトを開く
+
+Cache APIに対応したブラウザであれば、
+グローバル空間の変数cachesを通じてCacheStorageオブジェクトにアクセスできます。
+CacheStorageは
+複数のCacheオブジェクトというものを管理できます。
+そして、そのCacheオブジェクトが実際のキャッシュの追加や更新、削除を行います。
+
+手順としては、
+CacheStorageから任意のCacheを開き、
+Cacheにリソースをキャッシュしてもらうという流れになります。
+
+CacheStorageオブジェクトからCacheを取得するには、
+.open()メソッドを呼び出します。構文は次のようになります。
+
+CacheStorage.open(cacheName)
+
+引数cacheNameには
+Cacheオブジェクトの名前を文字列で指定します。
+これはキャッシュの種類やバージョンを指定するために用います。
+こうして複数のCacheオブジェクトを持てることで、
+一度新しいキャッシュを取得してから、
+古いキャッシュを削除するという運用が可能になります。
+
+一致するcacheNameが存在したら
+そのCacheオブジェクトを取得、存在しなければ新しく作成してそれを取得します。
+
+戻り値は
+Cacheオブジェクト取得時にresolveするPromiseになっているので、
+.then()でCacheオブジェクトを取得します。
+
+次のコードはCacheStorageから
+'cache-v1'という名前のCacheオブジェクトを取得、
+あるいは作成して取得する例です。
+
+＃ CacheStorageのopen()メソッドでCacheオブジェクトを取得
+
+caches.open('cache-v1').then(cache => {
+  // 変数cacheからCacheオブジェクトにアクセス可能
+});
+
+Cacheオブジェクトにキャッシュを追加する
+
+Cacheオブジェクトが手に入ったら、
+そこにキャッシュしたいリソースを追加していきます。
+
+ここでは、Cacheオブジェクトの
+.addAll()メソッドを紹介します。
+このメソッドは
+配列に渡したパスを対象にすべてをキャッシュさせることができます。
+
+このメソッドも戻り値はPromiseになっていて、
+キャッシュの完了時にresolveになる。
+
+caches.open('cache-v1')
+  .then(cache => {
+    return cache.addAll([
+      '/path/',
+      '/path/index.html',
+      '/path/app.js',
+      '/path/image.jpg'
+    ]);
+  })
+  .then(() => {
+    console.log('キャッシュが完了しました。');
+  });
+
+これで、
+CacheStorageからCacheを取得して
+リソースをキャッシュさせるコードができました。
+あとは、これをinstallイベント中に行うとよいでしょう。
+
+# installイベント中にキャッシュを行う
+
+すでに紹介したinstallイベントのハンドリングと、
+キャッシュ取得のコードを組み合わせます。
+
+ExtendableEventの.waitUntil()メソッドは
+引数にPromiseを期待します。
+そして、CacheStorageの.open()メソッドも
+Cacheオブジェクトの.addAll()メソッドも
+Promiseを戻り値としているので、これらはうまくつなげられます。
+
+self.addEventListener('install', event => {
+  event.waitUntil(
+    caches.open('cache-v1')
+      .then(cache => {
+        return cache.addAll([
+          '/path/',
+          '/path/index.html',
+          '/path/app.js',
+          '/path/image.jpg'
+        ]);
+      })
+      .then(() => {
+        console.log('キャッシュが完了しました。');
+      })
+  );
+});
+
+これで、Service Workerを登録することで
+指定したパスのリソースがキャッシュされるコードができました。
+
+ChromeとFirefox、
+それぞれ次の方法でキャッシュされたリソースの状況を確認できます。
+Service Workerをインストール後に一度ページをリロードしてみてください。
+
+# キャッシュしたレスポンスを返す
+
+ここまでの処理では
+リソースをキャッシュに追加しただけでまだ何の用途にも使っていません。
+ブラウザのリクエストに対応したキャッシュを返す処理も実装する必要があります。
+
+大体の流れとしては次のようなことをします。
+
+    ブラウザからのリクエストをキャッチする
+    キャッチしたリクエストと対応するキャッシュがあるか調べる
+        ある場合はそのキャッシュを返す
+        ない場合は通常どおりリクエストを続けてもらう
+
+# ブラウザからのリクエストをキャッチする
+
+最初にブラウザからのリクエストをキャッチするという手順があります。
+これにはService Worker内で
+fetchイベントのハンドリングを行うことで可能となります。
+
+次のコードは
+fetchイベントをキャッチした上で、
+何もせずに通常のリクエストにフォールバックさせるだけのコードです。
+.addEventListener()のコールバック関数内でただreturnすると、
+そうした挙動になります。
+
+self.addEventListener('fetch', event => {
+  // ブラウザからのリクエストを横取りできる。
+  // リクエストに対して何もしない場合は単にreturnするだけでよい。
+  return;
+});
+
+コード中の引数eventには
+FetchEventオブジェクトが渡ってきます。
+このFetchEventの.respondWith()メソッドを使うことで、
+ブラウザに対するレスポンスをすり替えられます。
+
+構文は次のとおりです。
+
+FetchEvent.respondWith(response)
+
+引数responseは、Responseオブジェクトか、
+resolve時にResponseオブジェクトを取得できる
+Promiseオブジェクトを受け取ります。
+
+次のコードはfetchイベントをキャッチして
+'hello'というテキストだけを
+レスポンスとして返す例です。ただ、これは説明のための極端な例で、
+このService Workerを実際に登録すると
+ブラウザからのあらゆるリクエストに対するレスポンスが'hello'に置き換わってしまいます。
+
+
+ブラウザに返すレスポンスをすり替える
+
+self.addEventListener('fetch', event => {
+  event.respondWith(new Response('hello'));
+});
+
+ここまでの内容に
+Responseオブジェクトというものが登場していますが、
+これはFetch API仕様に含まれる、
+リクエストのレスポンスを表すオブジェクトです。
+今回はService Workerとキャッシュについて
+焦点を当てていくのでResponseオブジェクト自体には深く触れず次に進みます。
+
+# リクエストに対応するキャッシュを調べる
+
+次はリクエストに対応するキャッシュがあるのかどうかを調べる方法についてです。
+
+CacheStorage.match(request)
+
+引数requestは
+Requestオブジェクトを受け取ります。
+戻り値は、
+resolve時にキャッシュに該当する
+Responseオブジェクトを取得できるPromiseオブジェクトです。
+
+Requestオブジェクトは、
+先述したResponseオブジェクトと同じくFetch API仕様に含まれる、
+リソースへのリクエストを表したオブジェクトです。
