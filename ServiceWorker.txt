@@ -281,3 +281,62 @@ Chromeであれば、まずDevToolsを開いて、
 「Application」タブを選択、
 左のメニューから「Service Workers」を選択すれば
 右のパネルに登録されているService Workerの状況が表示されます。
+
+Firefoxの場合は、
+about:debugging#workersへアクセスするか、
+アプリケーションメニューの「ツール」、
+「Web開発」、「Service Worker」と
+選択していくことでService Workerの状況が表示されます。
+
+# Service Workerのインストール
+
+installイベント
+
+Service Workerは、
+新規に登録されるか更新があった場合に
+installing状態へ遷移し、installイベントが発生します。
+このイベントでは名前のとおりService Workerのインストールに関する処理ができます。
+主にキャッシュの構築に利用することになるでしょう。
+
+イベントリスナーの登録には
+self.addEventListener()を使います。
+次のようなコードをservice-worker.jsに加えることで
+installイベントに反応する処理が書けます。
+
+self.addEventListener('install', event => {
+  console.log('Service Workerのinstallイベントが発生しました。');
+});
+
+ちなみに、installイベントのハンドリングは必須ではありません。
+もしinstallイベントリスナーを設定しなかった場合でも
+Service Workerの登録は問題なく進行します。
+
+インストールに関する処理を安全に行うためには、
+その間、Service Workerの登録が進んでいくのを待っていてもらわなくてはいけません。
+そのためのメソッドが、
+installイベントのコールバックが受け取るExtendableEventオブジェクトが持つ
+.waitUntil()メソッドです。
+
+構文は次のとおりです。
+
+ExtendableEvent.waitUntil(promise)
+
+引数promiseは
+Promiseオブジェクトを受け取り、
+そのPromise内部で行われる処理がresolveに至るまでService Workerが
+次の状態へ進まないことを保証します。
+つまり、Promiseが解決するまでinstalling状態のままで待ち続けます。
+
+次のコードは、
+.waitUntil()が状態の遷移を待機させることを確かめるだけの例です。
+この例では5秒間だけinstallイベントの完了を待たせます。
+
+self.addEventListener('install', event => {
+  event.waitUntil(
+    new Promise((resolve, reject) => {
+      setTimeout(() => {
+        resolve('インストール成功'):
+      }, 5000);
+    })
+  );
+});
