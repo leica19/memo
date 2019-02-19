@@ -529,3 +529,381 @@ Page Objectsの基本的な経験則には次のようなことが書かれて�
 この経験則で紹介されている概要を説明します。
 
 UI構造の隠蔽
+
+Page Objectは人間が操作することや、
+見ることのできるものすべてを、
+ソフトウェアクライアントもできるようにしなければなりません。
+GUIコントロールがデータを見つけて操作するのに必要な機構をカプセル化し、
+UI構造とウィジェットの詳細を隠します。
+つまり、テキストフィールドにアクセスするためには、
+文字列を返すアクセサメソッドを持たなければいけませんし、
+チェックボックスは真偽値を使い、
+ボタン類はアクション指向のメソッド名で表される必要があります。
+
+Page Objectsが返す値は基本的な型の値（文字列や数値、日付など）、
+または他のPage Objectsにする必要があります。
+
+Page Objectsの粒度
+
+Page Objectと呼ばれていますが、
+ページごとに作成するのではなくページ上の重要な要素に対して作成します。
+そのため、たとえばヘッダーのPage Objectsや、
+フッターのPage Objectsというものもあるでしょう。
+
+アサーション
+
+アサーションをPage Objectsに含むか含まないか開発者の間で意見が異なるケースがあるそうですが、
+Page Objectsの基本的な経験則の筆者はアサーションを「含まない」ようにしているとのことです。
+ TestCafeでもサンプルを確認すると、
+ Page Modelにアサーションは含まれておらず、
+ Page Modelを使用するテストコード側にアサーションが記述されています。
+ 
+ ポイントとなるところを解説していきます。
+ まずは、Page Modelの書き方を確認してみましょう。
+ 要素への参照が比較的単純なコントロールはコンストラクタ内で、
+ 次のようにして参照を取得します。
+ 
+ page-model.js
+
+ import { Selector } from 'testcafe';
+
+ export default class Page {
+   constructor () {
+     // 特定の要素の参照を取得
+     this.userName = Selector('#user-name');
+   }
+ }
+
+ アクションやアサーションを行う処理で、
+ Page Modelは次のようにしてインスタンス化されて使用されます。
+ 
+test.js
+
+import Page from './page-model';
+
+const page = new Page();
+
+test('Example test', async t => {
+    await t
+      // Page Model経由での参照に対してアクションを実行
+      .typeText(page.userName, 'ピクセルグリオ')
+});
+
+次に少し複雑な、
+ラジオボタンの特定の1要素を参照する方法を確認してみましょう。
+予め、Selector()で、
+すべての職種のラジオボタン要素を取得しておきます。
+その後get userJobFrontend()で特定のラジオボタンの参照を取得します。
+
+page-model.js
+
+import { Selector} from 'testcafe';
+
+// 予め、職種の全てのラジオボタン要素の参照を取得しておきます
+const userJobs = Selector('input[name=user-job]');
+
+export default class Page {
+  constructor () {
+    //...
+  }
+
+  // getを使用することで
+  // プロパティのようなアクセスを可能にしています
+  get userJobFrontend() {
+    // 特定の1つのラジオボタン要素の参照を取得します
+    // (ここでは「フロントエンドエンジニア」
+    return this.userJob(1);
+  }
+
+  userJob(value) {
+    // 職種のラジオボタンから、
+    // 特定の1つのラジオボタンの参照を取得します
+    return userJobs.filter(`[value="${value}"]`);
+  }
+}
+
+公式サイトでは、
+付随するテキストを利用してラジオボタンやチェックボックス要素への参照を取得していますが、
+多言語対応のアプリケーションの場合に対応できないため、
+valueを使った参照を使用しています。
+
+Page Modelを利用したテストは次のように書くことができます。
+
+test.js
+
+import Page from './page-model';
+
+fixture('アンケートフォーム')
+  .page('http://localhost:8080/03/3.html');
+
+const page = new Page();
+
+test('全ての項目を入力後、送信して遷移先を確認', async t => {
+  await t
+    .setNativeDialogHandler(() => true)
+    .typeText(page.userName, 'ピクセルグリオ')
+    .click(page.userJobFrontend)
+    .click(page.userSkillJavaScript)
+    .click(page.address)
+    .click(page.addressObtionNearKantou)
+    .drag(...page.satisfactionMiddleOffsets)
+    .typeText(page.note, '次回も参加します。');
+
+  const thanksPage = await page.submitForm();
+  await t.expect(thanksPage.messageText)
+    .eql('ピクセルグリオ様、アンケートにお答えいただき、ありがとうございました。');
+});
+
+このテストのアクションで行っていることを
+上から順に説明しますと、次のようになります。
+
+    確認ダイアログで「OK」を選択するようにあらかじめ設定する
+    名前に'ピクセルグリオ'を入力
+    職種のフロントエンドエンジニアを選択
+    スキルのJavaScriptを選択
+    住所のプルダウンをクリック
+    展開された住所のプルダウンの関東周辺を選択
+    満足度のスライダーのハンドルを5まで移動
+    備考に'次回も参加します。'と入力
+
+Page Modelと役割が分担されているため、
+テストを実行するtest.js側のファイルが、
+どのようなアクションを実行し、どのような結果を期待するのかを
+コードから読み取りやすいものになっていることがおわかりいただけると思います。
+もし、Page Modelに切り分けていなければ、test.jsの内容が煩雑になります。
+
+下記のコマンドを実行して、テストの実行内容を確認してみてください。
+
+testcafe chrome ./03/tests/3/test.js
+
+# Roleについて
+
+Webアプリケーション開発の多くは、
+ログインを伴うものであることがほとんどでしょう。
+E2Eテストでもログイン処理は無視できない存在でbeforeXXXなどの処理で、
+テスト開始前にログインを済ませるというケースが多いと思われます。
+TestCafeには、このログイン処理をスムーズに行うためのRoleという概念が存在します。
+
+次のようにRole用のファイルを用意して、
+ログイン画面のURLと
+各アカウントのログインのアクションを指定します。
+ここでは、通常ユーザー用のuserRoleと
+管理者用のadminRoleが用意されています。
+
+roles.js
+
+import { Role } from 'testcafe';
+
+const loginUrl = 'http://localhost:8080/03/login.html';
+
+export const userRole = Role(loginUrl, async t => {
+  await t
+    .typeText('#user-id',       'user1')
+    .typeText('#user-password', 'password')
+    .click('#login-button');
+});
+
+export const adminRole = Role(loginUrl, async t => {
+  await t
+    .typeText('#user-id',       'admin')
+    .typeText('#user-password', 'password')
+    .click('#login-button');
+});
+
+先ほどのtest.jsに対して、
+用意した通常ユーザー用のRoleを使用してみましょう。 
+まずuserRoleをimportしてします。
+
+import { userRole } from "./roles";
+
+アクションの最初にuseRole(userRole)を挟むことで、
+通常ユーザーのアカウントに切り替えることを指示しています。
+
+test('全ての項目を入力後、送信して遷移先を確認', async t => {
+  await t
+    .useRole(userRole)
+    .setNativeDialogHandler(() => true)
+  ...
+
+  ファイルは次のようになります。
+  
+test-with-role.js
+
+import Page from './page-model';
+import { userRole } from "./user-roles";
+
+  fixture('アンケートフォーム')
+    .page('http://localhost:8080/03/3.html');
+
+  const page = new Page();
+
+  test('全ての項目を入力後、送信して遷移先を確認', async t => {
+    await t
+      .useRole(userRole)
+      .setNativeDialogHandler(() => true)
+      //...
+
+    const thanksPage = await page.submitForm();
+    await t.expect(thanksPage.messageText)
+      .eql('ピクセルグリオ様、アンケートにお答えいただき、ありがとうございました。');
+  });
+
+  それでは、実際にテストを動かして確認してみましょう。
+
+  testcafe chrome ./03/tests/3/test-with-role.js
+  
+フォームの各コントロールが操作させる前に、
+ログインページに移動してログイン操作がされていることが確認できたかと思います。
+また、
+たとえば、通常はログイン処理後にトップページに移動する場合でも、
+useRoleはそのときにテストが行われていたページに自動的に戻ってきてくれます。
+この機能を使用することで、アカウントのログインと複数アカウントの切り替えが容易になります。
+
+
+【ワンポイント】アカウント情報をコードに含めることについて
+
+テストコード、テスト用のアカウントであっても、
+アカウント情報をコードに含むのは極力避けるべきでしょう。
+さらにE2Eテストでは、
+実際の本番環境のダミー用のアカウントでテストを動かすケースもあるでしょう。
+そういったケースでは環境変数にユーザーIDとパスワードを渡して、
+process.envで参照すると安全です。
+
+たとえば、CircleCIであれば、
+プロジェクトの[Settings]
+ -> BUILD SETTINGSの[Environment Variables]
+  -> [Add Variable]
+  から環境変数を設定することが可能です。
+
+テストスピード調整
+
+TestCafeのテストの実行速度は、
+デフォルトでは最高速度で実行されます。
+ただし、どのような処理が行われているのか確認したいという場合には、
+この処理が速すぎて何が行われているか確認できないというケースがあります。 
+そういった場合には、t.setTestSpeedを指定して、
+TestCafeの実行速度を調整することができます。
+
+test('全ての項目を入力後、送信して遷移先を確認', async t => {
+  await t
+    .setTestSpeed(0.5)
+    .setNativeDialogHandler(() => true)
+    .typeText(page.userName, 'ピクセルグリオ')
+    ...
+
+このメソッドの引数には、
+1～0.01の数値を渡します。
+1が最高速で0.01が最低速になります。
+
+Remote Browsers機能
+
+TestCafeには
+マルチブラウザでのテストのことを考慮したRemote Browsersという機能が用意されています。
+ブラウザ名を指定する代わりにremoteを指定して実行してみてください。
+
+testcafe remote ./03/tests/3/test.js
+
+すると、
+次のようにURLが出力されるはずです。
+このURLを
+たとえばローカルと同じネットワーク下にある
+VirtualBoxのブラウザのURLアドレスバーに指定してみてください。
+URLを指定した直後にテストが自動的に実行され、
+同様のテストが行われることが確認できるはずです。
+
+% testcafe remote ./03/tests/3/test.js
+[22:12:55]
+Connecting 1 remote browser(s)...
+Navigate to the following URL from each remote browser.
+Connect URL: http://10.0.1.6:59726/browser/connect
+
+またremote:2といった記述を指定することで、
+複数のブラウザに対してテストを待ち受けることが可能になります。
+
+testcafe remote:2 ./03/tests/3/test.js
+
+次はVirtualBox上で
+IE11とEdgeでのテストの実行例になります。
+
+% testcafe remote:2 ./03/tests/3/test.js
+[22:11:33]
+  Connecting 2 remote browser(s)...
+  Navigate to the following URL from each remote browser.
+  Connect URL: http://10.0.1.6:56633/browser/connect
+  CONNECTED IE 11.0.0 / Windows 10 0.0.0
+  CONNECTED Edge 15.15063.0 / Windows 10 0.0.0
+   Running tests in:
+   - IE 11.0.0 / Windows 10 0.0.0
+   - Edge 15.15063.0 / Windows 10 0.0.0
+
+   アンケートフォーム
+   ✓ 全ての項目を入力後、送信して遷移先を確認
+
+
+   1 passed (12s)
+   
+スクリーンショット機能
+
+テスト中の画面のスクリーンショットを撮るには、
+t.takeScreenshotを使用します。 
+このメソッドにスクリーンショットの画像を格納するパスを個別に指定することも可能ですが、
+ここでは引数を指定せずにコマンドで格納ディレクトリを指定してみましょう。
+
+パスはテストが実行されるパスからの相対パスになります。
+
+test('全ての項目を入力後、送信して遷移先を確認', async t => {
+  await t
+    .setNativeDialogHandler(() => true)
+    .typeText(page.userName, 'ピクセルグリオ')
+    .click(page.userJob(1))
+    .takeScreenshot('test.png')
+    ...
+
+-sオプションの後にディレクトリ名を指定します。
+
+testcafe chrome ./03/tests/3/test-with-screenshot.js -s screenshots
+
+実行後に
+コマンドを実行した階層にscreenshotsというディレクトリが作成されるはずですので、
+スクリーンショットの画像が格納されていることを確認してください。
+
+.
+├── test.png
+└── thumbnails
+    └── test.png
+
+注意しておきたいのは、
+このスクリーンショットの機能は先ほど紹介した
+Remote Browsersの機能で使用することはできないことです。
+Remote Browsersでスクリーンショットを試みると、次のようなメッセージが表示されます。
+
+Warnings (2):
+--
+The screenshot and window resize functionalities are not supported in a remote browser. They can function only if the browser is running on the same machine and in the same environment as the TestCafe server.
+--
+Was unable to take a screenshot due to an error.
+
+スクリーンショットの機能を使用したい場合は
+TestCafeを実行する環境と
+目的のブラウザが実行される環境を同じにする必要があります。
+
+本シリーズでは
+TestCafeを使用したE2Eテストの自動化について解説してきました
+。第1回でも紹介したようにWebアプリケーションのE2Eテストを実務に導入しようとすると、
+Seleniumという歴史あるツールと比較検討されることが多いと思います。
+
+それぞれ一長一短があり、
+判断が難しいところではあります。あくまで筆者の意見であり、
+第1回で紹介したことでもありますが
+BrowserStackやSauce Labsなどのクラウドブラウザのサービスのように、
+Seleniumを手厚くサポートをしているサービスと連係するのであれば、
+Seleniumを選択するのが賢明であると考えています。
+やはり、ここは歴史あるSeleniumに一日の長があると言えます。
+
+反対にそういったサービスを使用するほど
+予算を掛けられないような小・中規模の開発で、
+E2Eテストが必要になるようなケースでは、
+TestCafeの導入を検討してみても良いかもしれません。
+それぞれの特徴をよく理解した上で、
+プロジェクトに合ったテストフレームワークを選択し、
+機会があればTestCafeを試していただければと思います。
