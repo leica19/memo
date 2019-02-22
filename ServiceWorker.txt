@@ -579,3 +579,65 @@ Responseオブジェクトを取得できるPromiseオブジェクトです。
 Requestオブジェクトは、
 先述したResponseオブジェクトと同じくFetch API仕様に含まれる、
 リソースへのリクエストを表したオブジェクトです。
+
+そのRequestオブジェクトですが、
+FetchEventオブジェクトが
+.requestプロパティに持っているので、
+Service Worker内でfetchイベントを掴んで
+キャッシュを探索するという場面ではそれを使えばよいです。
+caches.match(event.request)というようにします。
+
+リエクストに対応するキャッシュを探す
+
+self.addEventListener('fetch', (event) => {
+  event.respondWith(
+    caches.match(event.request)
+      .then(response => {
+        // 該当するキャッシュが存在したかチェックする
+      })
+  );
+});
+
+リクエストに対応するキャッシュがなかった場合には、
+コード中のcaches.match()の戻り値であるPromiseはresolveとなりますが、
+値は何も渡されません（変数responseはundefinedとなります）。
+ですので、最終的にはresoleve時のコールバック内でキャッシュの存在を確かめることになります。
+
+その点も反映したコードが次の例になります。
+キャッシュが存在したら、それをそのままreturnします。
+存在しない場合はfetch()を使って通常のリクエストのとおり、
+オンライン上のリソースを探します。
+
+
+キャッシュが存在したかどうかを確認してレスポンスを返す
+
+self.addEventListener('fetch', (event) => {
+  event.respondWith(
+    caches.match(event.request)
+      .then(response => {
+        if (response) {
+          return response;
+        }
+        return fetch(event.request);
+      })
+  );
+});
+
+fetch()はFetch API仕様に含まれる、オンライン上のリソースをリクエストするメソッドです。
+Promiseを返すなど従来のXHRよりもモダンなインターフェースを持ち、
+XHRよりも低レベルな制御が行えます。
+将来的にXHRと置き換わっていくと思われます。
+Service Worker内で使える実装から始まっていて、
+現在はブラウザのメインスレッド内で動く実装も進んでいます。
+
+キャッシュの方法には他にもいろいろあり、
+ユーザーの操作によってキャッシュを行うパターン（たとえば好きな記事をオフラインで読める機能）、
+リクエスト時に、次回のアクセスを高速化するためにキャッシュもついでにしておくパターンなど、
+提供したい機能やリソースの種類によってキャッシュの方法は変わっていきます。
+
+# Service Workerを更新する
+
+登録されているService Workerは、
+その制御下にあるページを開くたびに更新が確認されます。
+ですから、こちらで行うことは、Service Workerに変更を加えてWebに反映するだけです。
+そうすると、ブラウザのほうでは自動的に新しいService Workerに更新してくれます。
