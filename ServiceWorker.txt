@@ -706,7 +706,7 @@ self.addEventListener('install', event => {
           '/path/',
           '/path/index.html',
           '/path/app-v2.js',
-          '/path/image-v2.jpg'          
+          '/path/image-v2.jpg'
         ]);
       })
       .then(() => {
@@ -786,3 +786,142 @@ self.addEventListener('activate', event => {
 新しく'cache-v2'のキャッシュを作り、
 古くなった'cache-v1'のキャッシュを削除できることを説明しましたが、
 まだよいコードにする余地があります。
+
+# 最新のキャッシュ以外を削除する
+
+たとえば、運用が進んで'cache-v100'までバージョンが進んでいたとします。
+このときにactivateイベントで、1つ前のバージョンである
+'cache-v99'のキャッシュだけを削除していればよいかというと、
+そうではありません。もしかしたら'cache-v10'を持ったままのユーザーもいるかもしれないからです。
+
+そういった点に考慮したい場合は、
+現行の'cache-v100'以外のCacheオブジェクトを削除する処理が書けると便利です。
+Cacheオブジェクトの走査ができると嬉しいのですが、
+そういうときに使えるのがCacheStorageの.keys()メソッドです。
+
+.keys()メソッドのコード例は次のとおりです。
+引数は取らず、戻り値はPromiseオブジェクトで、
+resolve時に保持しているCacheオブジェクトの名前が入った配列が渡ってきます。
+
+CacheStorage.keys()の呼び出し例
+
+caches.keys().then(cacheNames => {
+  // cacheNamesは保持しているCacheオブジェクトの名前が入った配列
+});
+
+そして、.keys()メソッドを使って走査を行いながら、
+最新ではないCacheオブジェクトを削除していく例が次のコードになります。
+
+最新ではないキャッシュを削除する
+
+// 最新のCacheオブジェクト名を宣言しておく
+const currentCacheNames = [
+  'cache-v100'
+];
+
+// 保持しているCacheオブジェクトの名前をすべて取得
+caches.keys().then(cacheNames => {
+  cacheNames.forEach(cacheName => {
+    // 最新のCacheオブジェクト名と一致しないものを判定
+    if (!currentCacheNames.includes(cacheName)) {
+      // 最新ではないCacheオブジェクトを削除
+      caches.delete(cacheName);
+    }
+  });
+});
+
+そしてこれを、activateイベントのevent.waitUntil()と組み合わせれば完成です。
+caches.keys()から始まる非同期処理のPromiseがevent.waitUntil()に渡るようにします。
+
+activateイベント中に最新ではないキャッシュを削除する
+
+const currentCacheNames = [
+  'cache-v100'
+];
+
+self.addEventListener('activate', event => {
+  event.waitUntil(
+    caches.keys().then(cacheNames => {
+      // caches.delete()が返すPromiseオブジェクトの配列をつくる
+      // Promise.all()でラップして返すため
+      const promises = cacheNames.map(cacheName => {
+        if (currentCacheNames.indexOf(cacheName) === -1) {
+          return caches.delete(cacheName);
+        }
+      });
+      return Promise.all(promises);
+    })
+  );
+});
+
+一度タブを閉じるなどして、新しいService Workerのactivateイベントを発生させれば、
+古いキャッシュを削除する処理が走ります。
+開発者ツールからでも、キャッシュが削除されていることが確認できます。
+
+この方法であれば、
+ホワイトリスト方式で存在を許しているキャッシュ以外のすべてを削除できるので、
+単に古いキャッシュの他にも間違って作られてしまったキャッシュなどもきれいにすることができます。
+
+# 便利なライブラリの紹介
+
+ここまで、Service Workerを使ったキャッシュの管理を手書きで行う前提で解説してきましたが、
+今回紹介したような静的なアセットのキャッシュ管理であれば、
+Service Worker用のJavaScriptファイルを自動生成するライブラリを使っても便利です。
+
+ライブラリはsw-precacheという名前で
+GitHubのGoogleChrome Organizationで公開されており、
+npmからもインストールが可能です。
+
+    sw-precache
+
+コマンドラインで呼び出して使用するほか、gulpによるビルドプロセスに組み込むこともできます。
+
+Service Workerは次のリンク先に置いたような形で書き出されます。
+
+sw-precacheを使って生成したService Worker
+codegrid/2016-serviceworker/service-worker.js
+
+インストールはnpmを使って次のように行います。
+
+$ npm install --save-dev sw-precache
+
+一番シンプルな使い方は、sw-precacheコマンドの実行です。
+
+Webサイト用のファイルが入っているディレクトリ内でこれを実行すると、
+そのディレクトリ以下にあるファイルをすべてキャッシュするためのservice-worker.jsファイルが
+同ディレクトリへ自動的に生成されます。
+なお、
+node_modules/があるようなディレクトリで実行すると
+Service Workerとしては大きいファイルができてしまうので気をつけてください。
+
+$ `npm bin`/sw-precache
+
+キャッシュ対象がサブディレクトリにある場合にキャッシュ対象ファイルの場所や種類を指定することもできます。また、service-worker.jsの書き出し先も同じく指定できます。
+
+$ `npm bin`/sw-precache --root=./dist --static-file-globs='./dist/**/*.{js,html,css,png}'
+
+次のような形でgulpと一緒に使うこともできます。
+gulpタスクにsw-precacheを組み込んだ例
+
+gulp.task('generate-service-worker', callback => {
+  const swPrecache = require('sw-precache');
+
+  swPrecache.write('dist/service-worker.js', {
+    staticFileGlobs: ['dist/**/*.{js,html,css,png}'],
+    stripPrefix: 'dist'
+  }, callback);
+});
+
+READMEもとても充実しており、
+そちらに目を通すとより情報も多く正確です。
+更新されたファイルの把握とそれぞれのバージョニングもライブラリに任せることができるため、
+キャッシュ管理が格段に楽になります。
+
+今回はService Worker更新の仕組み、
+キャッシュの更新と整理について解説しました。
+installとactivateキャッシュに限らず、
+installイベントは
+「新しいService Workerが問題なく動作を始められるように準備する」、
+activateイベントは
+「古いService Workerが役割を終えた後の整理をする」
+という方針でいくのがよいと思います。
