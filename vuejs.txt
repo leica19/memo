@@ -632,3 +632,1127 @@ v-forディレクティブを使うことで
 繰り返し処理も簡潔に記述することができます。
 
 次回から、アプリケーションを作りながらVue.jsの実践的な使い方について解説していきます。
+
+まず今回作成していくサンプルアプリケーションの完成形の動作をデモで確認してみましょう。
+デモを実行してどのような動作をするのかを把握してください。
+
+内容、日付、タグを入力し、保存ボタンをクリックすると、ページ内にその内容が保存されます。
+
+アプリケーションの構成
+
+このアプリケーションは次の3つのコンポーネントで構成されています。
+
+    メモを追加するEditorView
+
+    メモを表示するListItem
+
+    ListItemをリスト表示するListView
+
+これら3つのコンポーネントを組み合わせて、メモアプリケーションとして動作するようにします。
+
+そのほかの設計方針
+
+このシリーズでは、
+設計方針としてFlux的な状態管理の手法をベースに考えていきます。
+コンポーネントは
+親コンポーネントなどから与えられたデータを表示するのが主な役割となるので、
+機能としての必然性がない限り、
+コンポーネント独自の状態を持たせないようにします。
+また、状態の変更が各コンポーネントに散らばらないように、
+データの追加・削除・更新などの処理はコンポーネントでは行わず、
+ルートのインスタンスで行うようにします。
+
+今回のアプリケーションでは、
+ListViewと
+ListItemは独自の状態を持たず、
+親コンポーネントから渡されたデータを表示するだけです。
+EditorViewは
+ユーザーの入力を必要とするので入力項目の状態を持たせますが、
+メモを追加する処理はルートのインスタンスが行うようにします。
+
+まずは
+Vue.jsが動作するようにファイルを準備します。
+
+ページのベースとなるHTMLとして、
+次のHTMLをindex.htmlとして保存します。
+
+index.html
+
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>vue-memo</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div id="app"></div>
+  <script src="https://unpkg.com/vue/dist/vue.js"></script>
+  <script src="components/ListItem.js"></script>
+  <script src="components/ListView.js"></script>
+  <script src="components/EditorView.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
+
+index.htmlでは
+Vue.js本体と3つのコンポーネント、
+後述するapp.jsを読み込むように記述しておきます。
+
+合わせて、
+デモ用のスタイルとして次のCSSをstyles.cssとして保存し、読み込むように指定しておきます。
+
+次に、メインの処理を記述していくJavaScriptファイルとして、次のコードをapp.jsとして保存します。
+app.js
+
+const vm = new Vue({
+  el: '#app',
+  data() {
+    return {}
+  },
+  template: `
+    <div></div>
+  `
+})
+
+app.jsにはid属性値がappである要素にVueインスタンスを紐付けるようにしておきます。
+
+最後に、コンポーネントの処理を記述する3つのJavaScriptファイルを作成しておきます。これらのファイルは、この時点では空のままで大丈夫です。
+
+    components/ListItem.js
+    components/ListView.js
+    components/EditorView.js
+
+これらのファイルを作ると次のようなファイル構成になります。
+
+.
+├── app.js
+├── components
+│   ├── EditorView.js
+│   ├── ListItem.js
+│   └── ListView.js
+├── index.html
+└── styles.css
+
+# Step1. ListItemコンポーネントでメモを表示する
+
+まずは
+メモの内容を表示するListItemコンポーネントの作成です。
+ListItem.jsを次のように変更します。
+ここでは表示のテスト用の値として、memoというプロパティに
+メモの内容を持たせておきます。
+
+ListItem.js
+
+Vue.component('list-item', {
+  data() {
+    return {
+      memo: {
+        id: 1,
+        text: 'テスト',
+        date: '16-10-28',
+        tags: ['タグ1', 'タグ2']
+      }
+    }
+  },
+  template: `
+    <div class="list-item">
+      <div>
+        <span>id</span>：
+        <span>{{memo.id}}</span>
+      </div>
+      <div>
+        <span>text</span>：
+        <span>{{memo.text}}</span>
+      </div>
+      <div>
+        <span>date</span>：
+        <span>{{memo.date}}</span>
+      </div>
+      <div>
+        <span>tags</span>：
+        <span>
+          <span v-for="tag in memo.tags">{{tag}}</span>
+        </span>
+      </div>
+    </div>
+  `
+})
+
+ここではVue.component()を使い、
+list-itemという名前でコンポーネントを登録しています。
+
+このコンポーネントは、ほかのコンポーネントから<list-item></list-item>とすることで、
+
+HTMLのカスタムタグのように使用できます。
+
+memo.tagsは配列なので、
+v-forディレクティブを使って繰り返し処理で値を表示します。
+
+次にapp.jsでListItemコンポーネントを使うように、
+template部分を変更します。
+コンポーネントはVue.component()に指定した名前（list-item）をタグとして使います。
+
+app.js
+
+const vm = new Vue({
+  el: '#app',
+  data () {
+    return {}
+  },
+  template: `
+    <div>
+      <list-item></list-item>
+    </div>
+  `
+})
+
+ここまでの状態です。実行すると、メモの内容が表示されます。
+
+# Step2. EditorViewからメモを追加する
+
+次にメモを追加するEditorViewコンポーネントを作成します。
+EditorViewにはtext、date、tagsを入力するinput要素を定義し、
+保存ボタンをクリックしたらsave()を実行するように変更します。
+
+EditorView.jsを次のように変更します。
+
+EditorView.js
+
+Vue.component('editor-view', {
+  template: `
+    <div class="editor-view">
+      <div>
+        <label>内容：</label>
+        <input v-model="input.text" placeholder="メモのタイトル">
+      </div>
+      <div>
+        <label>日付：</label>
+        <input type="date" v-model="input.date">
+      </div>
+      <div>
+        <label>タグ：</label>
+        <input v-model="input.tags" placeholder="空白区切りで指定">
+      </div>
+      <div>
+        <button @click="save">保存</button>
+      </div>
+    </div>
+  `,
+  data() {
+    return {
+      input: {
+        text: '',
+        date: '',
+        tags: ''
+      }
+    }
+  },
+  computed: {
+    tagsArr() {
+      // input.tags の文字列を空白で区切って配列に変換する
+      return this.input.tags.trim() !== '' ? this.input.tags.trim().split(/\s+/) : []
+    }
+  },
+  methods: {
+    save() {
+      // this.input のクローンを生成する
+      const data = Object.assign({}, this.input, {tags: this.tagsArr})
+      // 'add'イベントを自身にトリガーする
+      this.$emit('add', data)
+    }
+  }
+})
+
+3つのinput要素はv-modelディレクティブで、
+それぞれinputプロパティにバインディングしています。
+save()はinputプロパティをクローンして処理を加えたあと、
+$emit()で'add'イベントをトリガーします。
+app.jsはこの'add'イベントをハンドリングして値を受取るように変更します。
+
+app.jsで'add'イベントをハンドリングしてデータを受け取るように変更します。
+
+コンポーネントからのイベントは、
+v-onディレクティブでハンドリングすることができます。
+ここではeditor-viewで
+'add'イベントが発生したときにadd()を呼ぶように<editor-view @add="add">としています。
+
+const vm = new Vue({
+  el: '#app',
+  data() {
+    return {
+      memo: {
+        id: 1,
+        text: '',
+        date: '',
+        tags: ''
+      }
+    }
+  },
+  template: `
+    <div>
+      <editor-view @add="add"></editor-view>
+      <list-item></list-item>
+    </div>
+  `,
+  methods: {
+    add(newMemo) {
+      Object.assign(this.memo, newMemo)
+    }
+  }
+})
+
+これでEditorViewから
+メモのデータを受け取ることができるようになりましたが、
+受け取ったデータをListItemに渡していないので表示できません。
+受け取ったデータをv-bindをディレクティブを使ってListItemに渡すように、
+templateを変更します。
+
+app.js
+
+...
+template: `
+  <div>
+    <editor-view @add="add"></editor-view>
+    <list-item :memo="memo"></list-item>
+  </div>
+  `
+...
+
+これでListItemコンポーネントmemoプロパティの値を渡すようにできましたが、
+ListItemコンポーネントはmemoを受け取れるようになっていません。
+
+コンポーネントは
+propsオプションを使うことで値を受け取ることができます。
+ここではpropsオプションを使い、memoという名前でObjectを受け取るという指定をします。
+また、ListItemコンポーネントはpropsで受け取ったmemoを表示することを役割とするため、
+dataは削除しておきます。
+
+ListItem.js
+
+Vue.component('list-item', {
+  props: {
+    memo: Object
+  },
+  template: `
+    （変更なしのため省略）
+  `
+})
+
+項目を埋めて保存ボタンをクリックすると、
+propsで受け取ったデータが表示できていることが確認できます。
+
+# Step.3 ListViewでメモをリスト表示する
+
+次に複数のメモをリスト表示できるように、
+ListViewコンポーネントを作成します。
+ListViewコンポーネントはmemosというメモの配列をpropsで受取り、
+ListItemで表示するようにします。
+また、memosが空だった場合にはv-ifディレクティブを使って、
+メモの代わりに表示できるメモがありません。
+というメッセージを表示するようにします。
+
+ListView.js
+
+Vue.component('list-view', {
+  template: `
+    <div class="list-view">
+      <div v-if="memos && memos.length !== 0">
+        <list-item
+          v-for="memo in memos"
+          :memo="memo">
+        </list-item>
+      </div>
+      <div v-else>
+        表示できるメモがありません。
+      </div>
+    </div>
+  `,
+  props: {
+    memos: Array
+  }
+})
+
+ListViewコンポーネントにmemosを渡すようにapp.jsを変更します。
+また、EditorViewから'add'イベントで受け取ったデータをmemosに追加するように変更します。
+
+app.js
+
+...
+  data() {
+    return {
+      memos: []
+    }
+  },
+  template: `
+    <div>
+      <editor-view @add="add"></editor-view>
+      <list-view :memos="memos"></list-view>
+    </div>
+  `,
+  methods: {
+    add(newMemo) {
+      newMemo.id = this.nextId
+      this.memos.push(newMemo)
+    },
+  },
+  computed: {
+    nextId() {
+      // this.memos の中で一番大きい id + 1 を返す
+      return this.memos.reduce((id, memo) => {
+          return id < memo.id ? memo.id : id
+        }, 0) + 1
+    }
+  }
+})
+
+メモの追加時に、
+追加するメモに対してidを設定しています。
+computedのnextIdは
+memosの中で一番大きいidに1を加えた数値を返します。
+
+実行すると、項目を埋めて保存ボタンをクリックするごとにメモが追加されていくのが確認できます。
+
+# Step.4 メモを削除できるようにする
+
+もっとアプリケーションらしくするため、
+追加したメモを削除できるようにしてみましょう。
+
+ListItemコンポーネントに削除ボタンを追加し、
+クリックされたときにremove()を呼ぶように変更します。
+
+ListItem.js
+
+...
+template: `
+  <div class="list-item">
+    <div>
+      <span>id</span>：
+      <span>{{memo.id}}</span>
+    </div>
+    <div>
+      <span>text</span>：
+      <span>{{memo.text}}</span>
+    </div>
+    <div>
+      <span>date</span>：
+      <span>{{memo.date}}</span>
+    </div>
+    <div>
+      <span>tags</span>：
+      <span>
+        <span v-for="tag in memo.tags">{{tag}}</span>
+      </span>
+    </div>
+    <div>
+      <button @click="remove(memo.id)">削除</button>
+    </div>
+  </div>
+`,
+methods: {
+  remove(id) {
+    // this.$parent(ListViewコンポーネント)に
+    // 'remove' イベントをトリガーする
+    this.$parent.$emit('remove', id)
+  }
+}
+...
+
+remove()ではListItemの親にあたるインスタンス（ListViewコンポーネント）に対して
+'remove'イベントをトリガーするようにします。
+こうすることで、app.jsでは次のように'remove'イベントをハンドリングすることができるようになります。
+
+app.js
+
+...
+template: `
+  <div>
+    <editor-view @add="add"></editor-view>
+    <list-view :memos="memos" @remove="remove"></list-view>
+  </div>
+`,
+methods: {
+  add(newMemo) {
+    newMemo.id = this.nextId
+    this.memos.push(newMemo)
+  },
+  remove(id) {
+    // 該当する id を持つ要素の index を取得する
+    const index = this.memos.findIndex((memo) => {
+      return memo.id === id
+    })
+    // this.memos から index にある要素を削除する
+    this.memos.splice(index, 1)
+  }
+},
+...
+
+メモを追加し、メモに表示されている削除ボタンをクリックすると、メモが削除されるのを確認できます。
+
+今回は小さなアプリケーションの作成を通して、
+コンポーネントの作成とデータの受け渡しや、
+イベントハンドリングについて解説しました。
+ここまでの内容を習得できれば、
+Vue.jsを使って単純なアプリケーションが開発できるはずです。
+
+vue-cliやvue-routerを使った、
+本格的なSPAの作成を解説していきます。
+
+# サンプルアプリケーションの概要
+
+まず、これから本シリーズで
+数回に渡って作成していくサンプルアプリケーションの完成形の動作を、
+デモで確認してみましょう。
+どういった実装になっているかはシリーズを通して段階的に解説していきますので、
+まずはどのような動作をするのかを把握してください。
+
+ページ構成
+
+アプリケーションは大きくわけて3つのページがあります。
+それぞれには次のようなURLと機能を割り当てています。
+一覧ページはサブのページとして編集ページを持っています。
+
+ページ名 	ルーティング 	機能
+
+最新 	/ 	最新n件のメモの表示
+一覧 	/items 	すべてのメモの一覧表示、メモの絞り込み表示
+編集 	/items/:id 	メモの編集
+追加 	/add 	新規メモの追加
+
+次回以降、vue-routerを使ってこれらのページのルーティングを追加していきます。
+
+コンポーネント構成
+
+前回作成したアプリケーションと同様に、
+アプリケーションは複数のコンポーネントで構成されています。
+たとえば、一覧ページは次の図のようになっています。
+
+これらのコンポーネントは、
+前回作ったアプリケーションのコンポーネントを再利用しながら作ります。
+
+コンポーネントには、
+それぞれ特定の役割を持たせることになります。
+ここで使われているコンポーネントは、次のような役割を持っています。
+
+番号 	コンポーネント名 	役割
+
+1 	ListView 	メモをリスト表示する
+2 	ListItem 	メモの内容を表示する
+3 	EditorView 	メモの追加・編集
+4 	NavLink 	ページのナビゲーション
+
+ListViewコンポーネントの中では、ListItemコンポーネントを使ってメモの内容を表示しています。
+EditorViewは新規のメモの作成を行う機能を持っていますが、特定の条件を満たしたときにはメモを編集する機能を有効にします。
+NavLinkは各ページへのリンクを提供します。
+
+作成工程
+
+これから数回に渡って、
+このアプリケーションを作成していきます。
+このアプリケーションは、前回作成したアプリケーションをベースにして、
+次のような工程を経て完成させます。
+メモアプリケーションに必要な機能（ソート、検索、絞り込み）なども適宜追加していきます。
+
+    vue-loaderを使ったコンポーネントの
+      .vueファイルへの置き換え
+    vue-routerを使ったルーティングの追加
+
+    vue-routerを使ったネストしたルーティングの追加
+
+    アプリケーションの状態管理の変更
+
+    Vuexを使った状態管理
+
+今回の記事では、
+最初の工程、vue-loaderを使ったコンポーネントの.vueファイルへの置き換えを解説します。
+
+前回作成したアプリケーションでは、
+Vue.component()を使って各コンポーネントを.jsファイルとして記述しました。
+以降では、vue-loaderを使って各コンポーネントを.vueファイルで記述します。
+
+# vue-devtoolsのインストール
+
+環境構築に入る前に、
+Vue.jsのアプリケーションをデバッグするのに役立つvue-devtoolsをインストールしておきましょう。
+
+vue-devtools
+はChrome専用の拡張機能で、
+次のリンクからブラウザにインストールすることができます。
+
+    Vue.js devtools - Chrome ウェブストア
+
+インストールするとDevToolsに
+Vueパネルが追加され、
+アプリケーションやコンポーネントの状態が確認できるようになります。
+
+# vue-cliで環境構築
+
+それでは最初に、vue-cliを使って、
+開発用のローカルサーバーやビルドの環境などを構築します。
+vue-cliはVue.jsでの開発に必要なこまごまとしたツールを
+一括で準備できる便利なツールです。
+
+コマンドラインから
+次のコマンドを実行して、vue-cliをグローバルにインストールします。
+
+$ npm install -g vue-cli
+
+インストール完了後、
+次のコマンドを実行してvue-cliが正しくインストールされているのを確認します。
+正しくインストールされていれば、次のようにバージョン番号が表示されます。
+
+$ vue -V
+2.5.1
+
+テンプレートの利用
+
+vue-cliは公式が提供しているテンプレートか、
+ユーザーが作成したテンプレートが利用できます。
+今回は公式が提供しているwebpackのテンプレートを利用します。
+このテンプレートには、
+次のような機能が使えるコマンドが用意されています。
+
+    開発用ローカルサーバー：
+        ファイルの監視と差分更新
+
+    リリース用のビルド：
+        minifyやバンドル
+
+    .vueファイルによるコンポーネント作成
+
+本シリーズでは解説しませんが、
+ESLintによる構文チェックや、ユニットテストとE2Eテストなどのテスト環境の構築も行えます。
+
+プロジェクトの作成
+
+早速ですが、
+次のコマンドを実行してwebpackのテンプレートを使ったプロジェクトを、
+vue-memoという名前で作成します。
+
+$ vue init webpack vue-memo
+
+コマンドを実行すると、
+package.jsonに指定するプロジェクトの名前や、
+各ツールの使用可否をY/nで答えるように質問されます。
+今回"Vue build"まではすべてエンターキーで進めて、
+それぞれの質問には次のように回答します。
+
+    ? Vue build: Runtime + Compiler (standalone)：そのままリターン
+    ? Use ESLint to lint your code?: No：nを入力
+    ? Setup unit tests with Karma + Mocha?: No：nを入力
+    ? Setup e2e tests with Nightwatch?: No：nを入力
+
+vue-cli · Generated "vue-memo".というメッセージが表示されたらプロジェクトの生成は完了です。
+
+これだけでvue-loaderを使ったコンポーネントの開発、
+ローカルサーバーによる差分更新、リリース用のビルドコマンドなどが行える環境が整えられました。
+
+vue-memoのディレクトリに移動したあと、
+npm installを実行して依存パッケージをインストールします。
+
+ローカルサーバーを起動してみる
+
+必要なパッケージのインストールが完了したので、
+ローカルサーバーを起動してみましょう。プロジェクトのディレクトリで次のコマンドを実行してローカルサーバーを起動します。
+
+$ npm run dev
+
+正しく起動すると、
+ブラウザでlocalhost:8080が開かれて、次のようなページが表示されます。
+
+コンポーネントを編集してみる
+
+このローカルサーバーはファイルに更新があったとき、
+自動でブラウザの更新を行ってくれます。
+それだけであればよくあるオートリロード機能なのですが、
+このローカルサーバーは、
+状況によって変更があった差分だけを賢く更新してくれます。
+この機能（Hot Module Replacement）によって、よりスムーズに開発を進めることができます。
+
+試しにローカルサーバーを起動した状態で
+src/components/Hello.vueの<script>のmsgの文字列部分を、
+次のように変更してみましょう。
+
+
+Hello.vue
+
+export default {
+  name: 'hello',
+  data () {
+    return {
+      msg: 'Welcome to CodeGrid !!'
+    }
+  }
+}
+
+ファイルを変更して保存すると、
+Welcome to Your Vue.js Appとなっていた箇所が更新されるのを確認できます。
+このとき、ローカルサーバーはブラウザをリロードすることなく、
+Hello.vueというコンポーネントだけを置きかえるように更新します。
+
+ブラウザの開発者ツールでネットワークパネルを開いた状態にしておくと、
+次のような非同期通信が行われているのが確認できます。
+
+アプリケーションの規模が大きくなると、
+JavaScriptのバンドルに時間がかかるようになって無駄に時間のロスが発生しがちです。
+差分更新を行うにはいろいろと設定が必要なことが多いですが、
+公式のテンプレートを利用すれば一切の手間なく、効率的な開発環境が整えられます。
+
+# .vueファイルとは
+
+これから前回作成したアプリケーションを、
+コンポーネントのコードをまとめて記述できる.vueファイルに置き換えていきますが、
+置き換える前にまず、.vueファイルについて知っておきましょう。
+
+.vueファイルを構成する3つの要素
+
+.vueファイルは次の3つの要素で構成されています。
+
+    <template>: コンポーネントのHTMLを記述する
+    <style>: コンポーネントのCSSを記述する
+    <script>: コンポーネントのJavaScriptを記述する
+
+次のコードは.vueファイルの例です。
+
+<template>
+  <div class="my-component">
+    <button @click="onClick">{{message}}</button>
+  </div>
+</template>
+
+<style lang="scss" scoped>
+  .my-component {
+    color: tomato;
+    button {
+      border: 1px solid #000;
+    }
+  }
+</style>
+
+<script>
+  export default {
+    data() {
+      return {
+        message: 'Hello!!'
+      }
+    },
+    methods: {
+      onClick() {
+        console.log(this.message)
+      }
+    }
+  }
+</script>
+
+Vue.component()でコンポーネントを作る際には、
+コンポーネントのtemplateプロパティにHTMLを文字列として記述していましたが、
+.vueファイルでは分離して記述することができます。
+コンポーネントのスタイルも
+.vueファイルでは同一のファイル内に記述することができ、
+コンポーネントのスタイルの管理が比較的やりやすくなります。
+.vueファイルの<script>に記述したJavaScriptは、
+vue-loaderがBabelによるトランスパイルを行うので、ES2015の構文を使用してJavaScriptを記述できます。
+
+また、<style>では
+Scoped CSSのエミュレートや、CSS ModulesによるCSSのカプセル化を行うことができます。
+Sassのようなプリプロセッサも、少しの手間で利用できます。
+
+# コンポーネントを.vueファイルにする
+
+それでは実際に
+.vueファイルへと置き換えていきましょう。前回作成したメモアプリケーションのコンポーネントは、次のようになっていました。
+
+    前回作成したメモアプリケーションのコンポーネント
+
+準備として、
+src/componentsに次の3つのファイルを作成しておきます。
+
+    ListItem.vue
+    ListView.vue
+    EditorView.vue
+
+    ListItem.vue
+
+    はじめにListItem.jsをListItem.vueにします。
+
+        ListItem.js
+
+ListItem.vueは次のようになります。
+  置き換えの手順は単純で、
+  コンポーネントのtemplateプロパティの値を<template>として記述し、
+  それ以外のプロパティを<script>のexport default {}の中に記述します。
+ListItem.vue
+
+    <template>
+      <div class="list-item">
+        <div>
+          <span>id</span>：
+          <span>{{memo.id}}</span>
+        </div>
+        <div>
+          <span>text</span>：
+          <span>{{memo.text}}</span>
+        </div>
+        <div>
+          <span>date</span>：
+          <span>{{memo.date}}</span>
+        </div>
+        <div>
+          <span>tags</span>：
+            <span>
+              <span v-for="tag in memo.tags">{{tag}}</span>
+            </span>
+        </div>
+        <div>
+          <button @click="remove(memo.id)">
+            削除
+          </button>
+        </div>
+      </div>
+    </template>
+
+    <script>
+      export default{
+        props: {
+          memo: Object
+        },
+        methods: {
+          remove(id) {
+            this.$emit('remove', id)
+          }
+        }
+      }
+    </script>
+
+    ListView.vue
+
+同じようにListView.jsをListView.vueにします。
+
+        ListView.js
+
+ListView.vueは次のようになります。
+ListViewではListItemコンポーネントを利用するので、
+ES2015のimport構文を使ってListItem.vueをインポートして定義しておきます。
+そしてcomponentsプロパティに指定します。
+
+    ListView.vue
+
+    <template>
+      <div class="list-view">
+        <div v-if="hasMemo">
+          <list-item
+            v-for="memo in memos"
+            :memo="memo"
+            @remove="remove">
+          </list-item>
+        </div>
+
+        <div v-else>
+          表示できるメモがありません。
+        </div>
+      </div>
+    </template>
+
+    <script>
+      import ListItem from './ListItem'
+      export default{
+        props: {
+          memos: Array
+        },
+        computed: {
+          hasMemo() {
+            return this.memos && this.memos.length !== 0
+          }
+        },
+        methods: {
+          remove(id) {
+            this.$emit('remove', id)
+          }
+        },
+        components: {
+          'list-item': ListItem
+        }
+      }
+    </script>
+
+EditorView.vue
+
+EditorView.jsをEditorView.vueに置き換えます。
+
+        EditorView.js
+
+EditorView.vueは次のようになります。書き換え方法は、これまでの.vueファイルと同様です。
+
+EditorView.vue
+
+    <template>
+      <div class="editor-view">
+        <div>
+          <label>内容：</label>
+          <input v-model="input.text" placeholder="メモのタイトル">
+        </div>
+        <div>
+          <label>日付：</label>
+          <input type="date" v-model="input.date">
+        </div>
+        <div>
+          <label>タグ：</label>
+          <input v-model="input.tags" placeholder="空白区切りで指定">
+        </div>
+        <div>
+          <button @click="save">保存</button>
+        </div>
+      </div>
+    </template>
+
+    <script>
+      export default{
+        data() {
+          return {
+            input: {
+              text: '',
+              date: '',
+              tags: ''
+            }
+          }
+        },
+        computed: {
+          tagsArr() {
+            // input.tags の文字列を空白で区切って配列に変換する
+            return this.input.tags.trim() !== '' ? this.input.tags.trim().split(/\s+/) : []
+          }
+        },
+        methods: {
+          save() {
+            // this.input のクローンを生成する
+            const data = Object.assign({}, this.input, {tags: this.tagsArr})
+            // 'add'イベントを自身にトリガーする
+            this.$emit('add', data)
+          }
+        }
+      }
+    </script>
+
+    App.vue
+
+最後にapp.jsをApp.vueに移して、アプリケーションが動作するようにします。
+
+        app.js
+
+App.vueは次のようになります。
+AppではListViewとEditorViewの2つのコンポーネントを利用するので、
+インポートして、componentsに指定します。
+
+App.vue
+
+    <template>
+      <div id="app">
+        <editor-view @add="add"></editor-view>
+        <list-view :memos="memos" @remove="remove"></list-view>
+      </div>
+    </template>
+
+    <script>
+      import EditorView from './components/EditorView'
+      import ListView from './components/ListView'
+
+      export default {
+        name: 'app',
+        data() {
+          return {
+            memos: [
+              {
+                id: 1,
+                text: 'テスト',
+                date: '16-10-28',
+                tags: ['タグ1', 'タグ2']
+              },
+              {
+                id: 2,
+                text: 'テスト2',
+                date: '16-11-28',
+                tags: ['タグ2', 'タグ3']
+              }
+            ]
+          }
+        },
+        computed: {
+          nextId() {
+            return this.memos.reduce((id, memo) => {
+                return id < memo.id ? memo.id : id
+              }, 0) + 1
+          }
+        },
+        methods: {
+          add(newMemo) {
+            newMemo.id = this.nextId
+            this.memos.push(newMemo)
+          },
+          remove(id) {
+            const index = this.memos.findIndex((memo) => {
+              return memo.id === id
+            })
+            this.memos.splice(index, 1)
+          }
+        },
+        components: {
+          'editor-view': EditorView,
+          'list-view': ListView
+        }
+      }
+    </script>
+
+# アプリケーションの動作を確認する
+
+これで前回作成したアプリケーションを
+.vueファイルに置き換えることができました。
+npm run devコマンドを実行し、
+ローカルサーバーで確認してみましょう。
+スタイルはあたっていないですが、アプリケーションは前回と同様に動作するのが確認できます。
+
+# スタイルを読み込む
+
+次にアプリケーションにスタイルをあててみましょう。
+前回使ったstyles.cssを適用します。
+
+静的なファイルはstaticディレクトリに格納します。
+staticディレクトリにstyles.cssを格納すれば、
+index.htmlから次のように参照できます。
+
+index.htmlからスタイルを参照
+
+<head>
+  <meta charset="utf-8">
+  <title>vue-memo</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+
+これでもいいですが、
+せっかくなのでコンポーネントから参照してみましょう。
+App.vueに次のように<style>を追加して参照します。
+
+App.vueからスタイルを参照
+
+<style>
+  @import '../static/styles.css';
+</style>
+
+これでstyles.cssのスタイルが適用されて、次のような表示になります。
+
+ここまでの状態のソースコードは、次のリポジトリに保存されていますので、
+参考にしてください。
+
+今回はvue-cliでテンプレートを利用してプロジェクトを作成し、
+.vueファイルでコンポーネントを置き換えるところまでを解説しました。
+vue-cliを使えば、すばやくVue.jsを使った開発の環境を整えることができるので、
+積極的に利用してみてください。
+
+次回はvue-routerを使った、ページのルーティングについて解説します。
+
+前回はvue-cliを使ってプロジェクトを作成し、
+シンプルなメモアプリケーションのコンポーネントを.jsファイルから
+.vueファイルに置き換えました。
+今回はvue-routerでルーティングを追加していきます。
+
+# ページごとのファイルの作成
+
+vue-routerでは、
+ルーティングとコンポーネントをマッピングすることで、
+ページに表示するコンテンツを決定します。
+たとえば/にアクセスしたときには
+Root.vueを表示するといった設定を記述します。
+
+まずはルーティングにマッピングするためのコンポーネントを作成します。
+
+ここで作成するコンポーネントに
+各ページのメインコンテンツを制御する役割を持たせます。
+今回は次の3つのルーティングに対して、
+3つのコンポーネントを作成します。
+
+マッピングするコンポーネントは
+通常のコンポーネントと区別するためにsrc/pageディレクトリに作成します。
+
+    /：src/page/Root.vue
+    /add：src/page/Add.vue
+    /items：src/page/Items.vue
+
+この段階ではこれらのファイルの中身は空の状態で大丈夫です。
+
+# vue-routerのインストール
+
+次のコマンドを実行してvue-routerをインストールします。
+
+$ npm install --save vue-router
+
+インストールしたvue-routerはmain.jsから使いますが、
+まずはルーティングの設定ファイルを先に作成します。
+
+# ルーティング設定ファイルの作成
+
+ルーティングの設定を記述していくファイルとして、
+src/routes.jsを作成します。
+
+ルーティングは次のように、
+routesに各ルーティングの設定を
+配列で記述していきます。
+
+pathにはURLを、
+componentにはマッピングするコンポーネントを指定します。
+ルートにはnameで名前を付けることが可能で、名前を付けておくとページからページへのリンクが簡単になります。
+
+routes.js
+
+import Root from './page/Root'
+import Add from './page/Add'
+import Items from './page/Items'
+
+export default {
+  routes: [
+    {
+      path: '/', component: Root, name: 'root'
+    },
+    {
+      path: '/add', component: Add, name: 'add'
+    },
+    {
+      path: '/items', component: Items, name: 'items'
+    }
+  ]
+}
+
+動作モードを指定する
+
+URLや履歴の操作に関して、
+vue-routerには次の3つの動作モードが用意されています。
+
+    hash
+    history
+    abstract
+
+デフォルトのモードはhashで、
+これは/#/items/5のように#（ハッシュ）を使ったURL Hashによるルーティングを行います。
+historyモードはHTML5のHistory APIを使ったもので、
+これは#のない/items/5のようなきれいなURLとなり、
+完全な履歴を提供します。
+abstractモードはhashにもhistoryにも対応していない環境用のモードで、
+URLは一切変わらず、履歴も作られません。
+
+どのモードを使うかはフロントエンドだけでなく、
+サーバーサイドの環境が関わってくるので、サーバーサイドに合わせて適切なモードを指定しましょう。
+
+本シリーズではhistoryモードを指定して、
+アプリケーションの作成を進めていきます。指定は、次のようにrouters.jsにmodeで行います。
+
+
+routes.js
+
+...
+export default {
+  // modeを追記
+  mode: 'history',
+  routes: [
+    ...
+  ]
+}
+
+# 
