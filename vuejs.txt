@@ -232,3 +232,403 @@ Vue.jsをサポートするツールやライブラリについて紹介しま�
 次回はVue.jsのAPIの中から、特に使用頻度が高いものについて解説します。
 
 Vue.jsのインストール
+
+まずはVue.jsを使えるようにしましょう。
+Vue.jsはGitHubリポジトリのreleaseページからダウンロードする方法、
+CDNを使う方法、npmでインストール方法があります。
+
+npmからインストールする場合には、コマンドラインから次のコマンドを実行します。
+
+$ npm install vue
+
+またほかの方法としてvue-cliを使ってテンプレートとともに環境を構築する方法もあります。
+
+vue-cliの利用
+
+vue-cliを次のように
+-gオプションを付けてインストールします。
+
+$ npm install -g vue-cli
+
+インストール完了後、vueコマンドが使えるようになります。
+新しくプロジェクトを作成する際には次のようにvue initを実行することで、テンプレートをダウンロードすることができます。
+
+$ vue init <template-name> <project-name>
+
+<tempalte-name>には
+公式が提供しているテンプレートの名前と、
+GitHubのリポジトリが指定できます。
+筆者は公式が提供している次の2つのテンプレートのうちのどちらかを利用することをお勧めします。
+
+    webpack
+    browserify
+
+これらのテンプレートを使うと、
+.vueファイルによるコンポーネントの作成、ローカルサーバーによる部分的なモジュールの更新など、
+開発を進める上で便利な環境がすぐに利用できるようになります。
+
+準備ができたところで、
+次節以降ではVue.jsの基本中の基本をおさえていくことにしましょう。
+
+VueインスタンスとDOM要素を紐付ける
+
+Vue.jsは作成したVueインスタンスを
+DOM要素と紐付けることで機能します。
+インスタンスを紐付けるにはelオプション、
+もしくは$mount()を使います。
+
+説明のために、
+ここではHTML上に<div id="app"></div>という要素が存在する、
+という前提で進めます。
+
+<div id="app"></div>
+
+elオプションを使って
+idがappである要素にVueインスタンスを紐付けるには、
+次のようにelにCSSのセレクタ#appを指定します。
+
+const vm = new Vue({
+  el: '#app',
+  template: `<div>
+    app
+  </div>`
+})
+
+これは$mount()を使って次のように記述できます。
+
+const vm = new Vue({
+  template: `<div>
+    app
+  </div>`
+})
+
+vm.$mount('#app')
+
+デモでは紐付けただけの状態なので、
+ブラウザ上にappと表示されるだけです。
+
+elオプションと$mount()にはCSSセレクタ以外にも、
+doument.querySelector()などで取得できるDOM要素も指定できます。
+
+State（状態）を持たせる
+
+Vueインスタンスやコンポーネントに
+Stateを持たせるには、次のようにdataオプションを使います。
+ここではmessageというプロパティを定義しています。
+
+const vm = new Vue({
+  el: '#app',
+  template: `<div>
+    {{message}}
+  </div>`,
+  data() {
+    return {
+      message: 'Hello Vue.js !!'
+    }
+  }
+})
+
+Stateはtemplateから{{}}（Mustache記法）で参照することができます。
+templateから参照している値は、Stateが更新された際に自動的に表示も更新されます。
+
+dataオプションの定義には、
+オブジェクトをそのまま指定する方法と、
+関数によってオブジェクトをreturnする方法の2つがあります。
+
+メソッドを定義する
+
+Vueインスタンスにメソッドを追加する場合には、
+次のようにmethodsオプションに定義します。
+ここではcountに1を足していくincrement()を定義しています。
+
+const vm = new Vue({
+  el: '#app',
+  template: `<div>
+    {{message}}:{{count}}
+  </div>`,
+  data() {
+    return {
+      message: 'Hello Vue.js !!',
+      count: 0
+    }
+  },
+  methods: {
+    increment() {
+      this.count += 1
+    }
+  }
+})
+
+methodsや後述するcomputedなどからStateを参照する際には、
+プロパティ名にthisを付けて参照します。
+またdataで定義した値はthis.$dataという変数に格納されていますが、
+これは省略することができます。
+
+templateからメソッドを呼び出す
+
+定義したincrement()を
+templateから呼び出すには、v-onディレクティブを使います。
+
+v-onディレクティブは
+v-on:イベント名="メソッド名"という形式で記述します。
+ボタンがクリックされたときにincrement()を呼び出すには、
+v-on:click="increment"となります。
+なお、以降、コードが重複する部分は省略して差分部分だけを示します。
+
+...
+  template: `<div>
+    <button v-on:click="increment">increment</button>
+    <div>{{message}}:{{count}}</div>
+  </div>`,
+...
+
+ボタンをクリックするとincrement()が呼ばれ、countに加算された結果が表示されます。
+
+v-onディレクティブは省略記法が用意されています。次のように@clickといった具合に、v-onを@で置き替えることができます。
+
+...
+  template: `<div>
+    <button @click="increment">increment</button>
+    <div>{{message}}:{{count}}</div>
+  </div>`,
+...
+
+v-が付いたディレクティブが多く存在しているので、
+テンプレートの見通しをよくするために
+@による省略記法を使うことをお勧めします。
+
+# 算出プロパティを利用する
+
+プロパティ同士を計算した結果を表示したり、Stateによって条件判定を行うなど、なんらかの処理を加えた値を表示することがあります。こういった場合には、computedオプションを使います。
+
+たとえば、computedオプションに、messageとcountを繋げた文字列を返すmessageAndCountプロパティを定義します。templateからこのプロパティを参照することで、テンプレート上で文字列を結合するような処理を書く必要がなくなります。
+
+...
+  template: `<div>
+    <button @click="increment">increment</button>
+    <div>{{messageAndCount}}</div>
+  </div>`,
+
+...
+
+  computed: {
+    messageAndCount() {
+      return `${this.message}:${this.count}`
+    }
+  }
+})
+
+computedオプションで定義されたプロパティは、
+
+プロパティ内部で使用されているプロパティ（ここではmessageとcount）が更新された場合に、
+自動的に計算をし直して、表示する値も更新されます。
+
+テンプレート上にはできるだけロジックを書かないようにすることが、
+テンプレートの見通しをよくするためにも望ましいことです。
+
+ここまでて、Vue.jsを用いたWebアプリケーション作成の基礎的な部分がおわかりいただけたかと思います。
+
+次節からはディレクティブについて解説します。
+
+# DOM操作を行うディレクティブ
+
+Vue.jsには
+ディレクティブ（directive）と呼ばれる、
+DOM操作を行うための組み込みの機能が用意されています。
+ディレクティブにはv-という接頭辞が付けられています。
+Vue.jsには10種類を超えるディレクティブがありますが、こ
+こではよく使うディレクティブについて解説します。
+
+# イベントのハンドリングを行うv-on
+
+v-onディレクティブは
+DOM上で起こるイベントをハンドリングするためのディレクティブです。
+
+前述したclick以外にも
+submitやkeyupなど、DOM上で起こるイベントをハンドリングできます。
+また、
+次回以降解説する$emit()によるイベントのトリガーも
+v-onを使ってハンドリングすることができます。
+
+# フォーム要素で便利なv-model
+
+v-modelディレクティブは
+フォーム要素のvalueとVueインスタンスのStateをバインディングするディレクティブです。
+次のようにinput要素にv-modelディレクティブでプロパティ名を指定すると、
+テキストボックスの変更と合わせて指定したプロパティの値も更新されます。
+
+...
+  template: `<div>
+    <input v-model="message">
+    <button @click="increment">increment</button>
+    <div>{{messageAndCount}}</div>
+  </div>`,
+...
+
+# 条件によってDOMの表示／非表示を切り替えるv-ifとv-show
+
+特定の条件を満たすとき／満たさないときに、
+要素の表示／非表示を切り替えたいときがあると思います。
+そういったときには、v-ifディレクティブか
+v-showディレクティブを使います。
+
+v-ifディレクティブとv-showディレクティブは、指定された値（条件式）がtrueのときに要素を表示し、
+値がfalseのときに要素を非表示にします。
+
+例として、v-ifディレクティブを使って
+countプロパティが奇数のときにだけmessageAndCountが表示されるようにしてみます。
+
+次のように表示と非表示を切り替えたい要素にv-ifディレクティブで条件式を指定します。
+
+ここでは2で割った余りが1になるとき（つまり奇数）のときに表示されるようにしています。
+
+...
+  template: `<div>
+    <input v-model="message">
+    <button @click="increment">increment</button>
+    <div v-if="count % 2 !== 0">{{messageAndCount}}</div>
+  </div>`,
+...
+
+increment()を実行すると表示／非表示が交互に切り替わります。
+
+# v-ifとv-showの違い
+
+v-showディレクティブも
+要素を非表示にするものですが、v-ifディレクティブとはいくつか異なる点があります。
+v-ifディレクティブはfalseと評価される値が指定されたときにDOM上から要素を取り除くことで非表示にしますが、
+v-showディレクティブはCSSのdisplayにnoneを指定して非表示にします。
+
+また、v-ifディレクティブでは
+falseと評価される値が指定されたときにだけ表示される要素をv-elseディレクティブで指定することができます。
+
+次のように、v-ifディレクティブを指定した要素に隣接するように、
+v-elseディレクティブを指定した要素を記述します。
+
+...
+  template: `<div>
+    <input v-model="message">
+    <button @click="increment">increment</button>
+    <div v-if="count % 2 !== 0">{{messageAndCount}}</div>
+    <div v-else>この要素はcountが偶数のときに表示されます</div>
+  </div>`,
+...
+
+ボタンをクリックすると、
+v-ifディレクティブを指定した要素とv-elseディレクティブを指定した要素が交互に表示されます。
+
+# 動的に属性値を割り当てるv-bind
+
+classやstyleなど、
+Stateや条件によって
+動的に値を適用したいときがあります。
+そうったときにはv-bindディレクティブを使います。
+
+次の例はcomputedのプロパティとして
+styleObjectというインラインスタイルのためのプロパティを定義しています。
+colorはthis.countが奇数のときに'red'、偶数のときに'blue'になります。
+
+...
+  template: `<div>
+    <input v-model="message">
+    <button @click="increment">increment</button>
+    <div v-bind:style="styleObject">{{messageAndCount}}</div>
+  </div>`,
+  data() {
+    return {
+      message: 'Hello Vue.js !!',
+      count: 0
+    }
+  },
+  methods: {
+    increment() {
+      this.count += 1
+    }
+  },
+  computed: {
+    messageAndCount() {
+      return `${this.message}:${this.count}`
+    },
+    styleObject() {
+      return {
+        color: this.count % 2 !== 0 ? 'red' : 'blue',
+        fontSize: '16px'
+      }
+    }
+  }
+...
+
+この例ではcomputedオプションを使用していますが、
+templateにそのまま記述することもできますし、dataのプロパティを参照することもできます。
+v-bindはstyleやclassに限らず、
+値を要素に動的にバインディングする場合、全般において使えます。
+
+また、v-bindディレクティブには省略記法が用意されており、
+v-bindを省略して:hoge="fuga"といった記述で指定することもできます。
+
+# 繰り返し表示を行うv-for
+
+配列やオブジェクトなど、
+値が単一でないプロパティの表示には
+v-forディレクティブを使います。
+次の例では文字列を格納した配列colorsと、
+オブジェクトを格納したusersを定義し、
+v-forディレクティブによって表示しています。
+
+...
+  template: `<div>
+    <input v-model="message">
+    <button @click="increment">increment</button>
+    <div v-bind:style="styleObject">{{messageAndCount}}</div>
+    <div>colors:
+      <span v-for="color in colors" :style="{color}">{{color}} </span>
+    </div>
+    <div>users:
+      <div v-for="user in users">
+        {{user.id}}:{{user.name}}
+      </div>
+    </div>
+  </div>`,
+  data() {
+    return {
+      message: 'Hello Vue.js !!',
+      count: 0,
+      colors: ['red', 'blue', 'green'],
+      users: [
+        {id: 1, name: 'ユーザ１'},
+        {id: 2, name: 'ユーザ２'}
+      ]
+    }
+  },
+...
+
+v-forはcolor in colorsといった形式で、
+右側にVueインスタンスが持っているプロパティ名（ここではcolors）を指定し、
+左側にはv-forの繰り返し内で参照できるように
+エイリアス（ここではcolor）を指定します。
+
+v-forディレクティブで
+オブジェクトの値を繰り返し処理する場合、user.idのように参照することもできますが、
+次のようにvalueとkeyをエイリアスとして指定することができます。
+
+...
+    <div>users:
+      <div v-for="user in users">
+        <span v-for="(value, key) in user">
+          {{key}}:{{value}},
+        </span>
+      </div>
+    </div>
+  </div>`,
+...
+
+ここではv-for="user in users"としている繰り返し処理の中で、
+さらに
+v-forディレクティブを使い、v-for="(value, key) in user"として、
+userプロパティが持っているプロパティのkeyとvalueを列挙しています。
+
+このように、
+v-forディレクティブを使うことで
+繰り返し処理も簡潔に記述することができます。
+
+次回から、アプリケーションを作りながらVue.jsの実践的な使い方について解説していきます。
