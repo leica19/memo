@@ -1755,4 +1755,456 @@ export default {
   ]
 }
 
-# 
+# ルーターインスタンスの作成と指定
+
+src/routes.jsを元にルーティングを行うよう、
+src/main.jsを次のように変更します。
+
+Vue.use()はVue.jsでプラグインを使用するためのメソッドで、
+ここではvue-routerを指定しています。
+new VueRouter()でルーターインスタンスを作成し、
+作成したインスタンスをVueのインスタンス作成時にrouterに指定します。
+これでVue.jsがvue-routerを使ったルーティングを行ってくれるようになります。
+
+main.js
+
+import Vue from 'vue'
+import App from './App'
+import VueRouter from 'vue-router'
+import routes from './routes'
+
+Vue.use(VueRouter) // VueRouterを使うことをVueに知らせる
+
+const router = new VueRouter(routes) // ルーターインスタンスの作成
+
+new Vue({
+  el: '#app',
+  template: '<App/>',
+  components: { App },
+  router // router にルーターインスタンスを指定
+})
+
+このルーターインスタンスは、
+各コンポーネントの
+$routerプロパティとして参照できるようになります。
+
+$routerはナビゲーションを行うためのAPIを持っているので、
+コンポーネントからJavaScriptによるナビゲーションを行うことができます。
+
+プログラムによるナビゲーションについては、ドキュメントを参照してください。
+
+# router-viewでコンポーネントを表示する
+
+vue-routerをインストールすると、
+<router-view>と<router-link>という、
+ルーティングを行うための特別な要素が使えるようになります。
+
+src/routers.jsにルーティングとコンポーネントをマッピングする設定を記述しましたが、
+
+このマッピングしたコンポーネントを表示するのに<router-view>を使います。
+
+<router-link>については後述します。
+
+src/App.vueの<template>を次のように変更します。
+
+App.vue
+
+<template>
+  <div id="app">
+    <!-- router-viewに書き換える -->
+    <router-view></router-view>
+  </div>
+</template>
+
+router-viewには、
+設定したルーティングにマッチした場合に
+マッピングしたコンポーネントが表示されることになります。
+
+# 各ページへのナビゲーションを行うコンポーネントを作成する
+
+各ページへのナビゲーションを行うためのNavLinkコンポーネントを作成しましょう。
+src/components/NavLink.vueとして保存します。
+
+router-linkは
+vue-routerでルーティングされるページへのリンクを張るための要素です。
+router-linkにはリンク先のパスをそのままto="/items"と指定することもできますが、
+:to="{name: 'root-name'}"と名前を付けたルートのnameを指定するほうが、
+相対パスなどを気にする必要がなくなるので、便利でわかりやすくなります。
+
+NavLink.vue
+
+<template>
+  <nav>
+    <router-link :to="{name: 'root'}">最新</router-link>
+    <router-link :to="{name: 'items'}">一覧</router-link>
+    <router-link :to="{name: 'add'}">追加</router-link>
+  </nav>
+</template>
+
+NavLinkをApp.vueで表示するように変更します。
+
+App.vue
+
+...
+<template>
+  <div id="app">
+    <!-- nav-linkを追加 -->
+    <nav-link></nav-link>
+    <router-view></router-view>
+  </div>
+</template>
+
+<script>
+// NavLinkのimport文に書き換え
+import NavLink from './components/NavLink'
+export default {
+  ...
+  components: {
+    // NavLinkのみに書き換え
+    NavLink
+  }
+}
+</script>
+
+これでリンクをクリックすることで
+各ページにアクセスできるようになりました。
+ただ、この段階では各ページ（.vueファイル）が空のままなので、
+何も表示されません。
+
+ページのテンプレートを変更する
+
+ルーティングが正しく動作しているか確認するために、
+各ページのコンポーネントのテンプレートを次のように変更します。
+
+Root.vue
+
+<template>
+  <div>
+    ルートページです。
+  </div>
+</template>
+
+Items.vue
+
+<template>
+  <div>
+    一覧ページです。
+  </div>
+</template>
+
+Add.vue
+
+<template>
+  <div>
+    追加ページです。
+  </div>
+</template>
+
+ルーティングに設定したURLにアクセスすると、
+URLの変更に合わせてマッピングしたコンポーネントが表示されるのが確認できます。
+
+# 各ページにコンポーネントを表示する
+
+各ページにコンポーネントを配置して、
+一覧表示と、メモの追加・削除が行えるようにしましょう。
+
+一覧ページ
+
+まずはItems.vueで
+ListViewを使ってメモの表示が行えるようにします。
+
+Items.vueを次のように変更します。
+
+
+Items.vue
+
+<template>
+  <div>
+    <list-view :memos="memos" @remove="remove"></list-view>
+  </div>
+</template>
+
+<script>
+  import ListView from '../components/ListView'
+  export default{
+    props: {
+      memos: Array
+    },
+    methods: {
+      remove(id) {
+        this.$emit('remove', id)
+      }
+    },
+    components: {
+      ListView
+    }
+  }
+</script>
+
+Items.vueは自身のデータとしてmemosを持っていないので
+、propsでmemosを受け取る必要があります
+。App.vueからmemosを渡すように<template>を変更します。
+
+App.vue
+
+<template>
+  <div id="app">
+    <nav-link></nav-link>
+    <router-view :memos="memos" @add="add" @remove="remove"></router-view>
+  </div>
+</template>
+
+ここでは
+メモの追加と削除の処理が行えるように、
+'add'イベントと'remove'イベントのイベントハンドラも追加しています。
+
+# 追加ページ
+
+次にAdd.vueでEditorViewを使ってメモの追加が行えるように、
+Add.vueを次のように変更します。
+ここでは$router.push()を利用して、
+メモの追加処理のあとに/itemsへナビゲーションするようにします。
+
+Add.vue
+
+<template>
+  <div>
+    <editor-view @add="add"></editor-view>
+  </div>
+</template>
+
+<script>
+  import EditorView from '../components/EditorView'
+  export default{
+    methods: {
+      add(data) {
+        this.$emit('add', data)
+        this.$router.push({name: 'items'}) //追加処理のあとに`/items`にナビゲーションする
+      }
+    },
+    components: {
+      EditorView
+    }
+  }
+</script>
+
+/addにアクセスして、
+追加ボタンをクリックすると、/itemsへと遷移して、
+追加したメモが表示されているのが確認できます。
+
+# トップページに最新n件のメモを表示する
+
+トップページでは、
+新しく追加した順に、指定した件数だけメモが表示されるようにします。
+Vue 1.x系にはビルトインのフィルタがあったので簡単にできましたが、
+Vue 2.x系ではフィルタが用意されていないので、
+自身でフィルタの処理を実装する必要があります。
+
+ListViewにフィルタを実装する
+
+まずはListViewに表示件数の指定と、表示順が指定できるようにしましょう。
+
+ListView.vueで、
+次のようにpropsでcountとsortを受け取るようにします。
+そしてフィルタした結果を返すfilteredMemos
+をcomputedに定義して、
+表示するデータをmemosからfilteredMemosに変更します。
+
+ListView.vue
+
+<template>
+  ...
+      <!-- v-forをmemo in filteredMemosに変更  -->
+      <list-item
+        v-for="memo in filteredMemos"
+        :memo="memo"
+        @remove="remove">
+      </list-item>
+  ...
+</template>
+
+<script lang="babel">
+  import ListItem from './ListItem'
+  export default{
+    props: {
+      memos: Array, // 書き換え
+      count: Number, // 追加
+      sort: String // 追加
+    },
+    computed: {
+      hasMemo() {
+        return this.filteredMemos && this.filteredMemos.length !== 0 // memosをfilteredMemosに書き換え
+      },
+      // filteredMemos()の処理を追加
+      filteredMemos() {
+        let memos = this.memos.concat()
+        if (this.sort) {
+          switch(this.sort) {
+            case 'latest':
+              memos.reverse()
+          }
+        }
+        if (this.count) {
+          memos = memos.splice(0, this.count)
+        }
+        return memos
+      }
+    },
+    ...
+  }
+</script>
+
+sortがlatestの場合にデータを逆順に表示できるようになり、
+countで件数が指定できるようになりました。
+なにも指定がない場合には処理を行わずにそのまま表示されます。
+
+# Root.vueを変更する
+
+Root.vueは次のように、
+ListViewに対してcount: 3と、sort: "latest"を指定します。
+
+リストの後ろには/itemsへのリンクを追加します。
+
+Root.vue
+
+<template>
+  <div>
+    <list-view :memos="memos" @remove="remove" :count="count" :sort="sort"></list-view>
+    <router-link :to="{name: 'items'}">すべて見る</router-link>
+  </div>
+</template>
+
+<script>
+  import ListView from '../components/ListView'
+  export default{
+    data() {
+      return {
+        count: 3,
+        sort: 'latest'
+      }
+    },
+    props: {
+      memos: Array
+    },
+    methods: {
+      remove(id) {
+        this.$emit('remove', id)
+      }
+    },
+    components: {
+      ListView
+    }
+  }
+</script>
+
+/にアクセスすると、次のように新しい順に指定した件数だけメモが表示されます。
+
+# ナビゲーションにスタイルを追加する
+
+NavLinkを左サイドに表示するようにスタイルを記述していきます。
+
+.vueファイルでSassを使えるようにする
+
+スタイルの変更の前に、
+スタイルの記述を楽にするために、.vueファイルでSassを使えるようにしておきます。
+
+必要なのはnode-sassとsass-loaderの2つのパッケージです。
+次のコマンドで2つのパッケージをインストールします。
+
+$ npm install --save-dev node-sass sass-loader
+
+必要なのはパッケージのインストールだけで、
+設定は特に必要ありません。
+
+スタイルを追加する
+
+NavLink.vueを次のように変更します。
+<style>の中でSass（ここではSCSS記法）が使えるように、
+langにscssを指定します。
+
+NavLink.vue
+
+<style scoped lang="scss">
+  .menu {
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    background-color: #555;
+    color: #fff;
+    a {
+      color: inherit;
+      text-decoration: none;
+      display: inline-block;
+      padding: 10px;
+      font-weight: normal;
+      font-size: 14px;
+      &:link {
+        color: inherit;
+      }
+    }
+    a.router-link-active {
+      background-color: #fcfcfc;
+      color: #555;
+    }
+  }
+</style>
+
+<template>
+  <nav class="menu">
+    <router-link :to="{name: 'root'}">最新</router-link>
+    <router-link :to="{name: 'items'}">一覧</router-link>
+    <router-link :to="{name: 'add'}">追加</router-link>
+  </nav>
+</template>
+
+vue-routerはrouter-linkに設定されているルーティングが、現在のURLとマッチする要素にrouter-link-activeというクラスを付与します。
+このクラスにスタイルを設定することで、
+現在地がどこかを示すことができます。
+
+ただしこの判定は、
+URLの先頭からの部分一致なので、/はすべてのルートにマッチしていると判定されてしまいます。
+URLが完全一致したときだけクラスが適用されるように、router-link要素にexact属性を追加します。
+
+...
+<router-link :to="{name: 'root'}" exact>最新</router-link>
+...
+
+# App.vueにスタイルを追加する
+
+ナビゲーションが左サイドに固定されるように、
+App.vueを次のように変更します。router-viewにはcontentsクラスを指定します。
+
+App.vue
+
+<style lang="scss">
+  @import '../static/styles.css';
+  html, body {
+    color: #555;
+    margin: 0;
+    padding: 0;
+    height: 100vh;
+  }
+  #app {
+    height: 100%;
+    display: flex;
+    .contents {
+      height: 100%;
+      flex-grow: 1;
+      overflow: scroll;
+      box-sizing: border-box;
+    }
+  }
+</style>
+<template>
+  <div id="app">
+    <nav-link></nav-link>
+    <router-view class="contents" :memos="memos" @add="add" @remove="remove" :count="3"></router-view>
+  </div>
+</template>
+...
+
+これで左サイドに固定ナビゲーションが表示されるようになり、よりアプリケーションらしくなりました。
+
+今回はvue-routerを使ったルーティングについて解説しました。
+
+次回は、メモの編集が行えるページを、/itemsのサブルートとして作成していきます。
