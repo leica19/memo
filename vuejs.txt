@@ -2208,3 +2208,416 @@ App.vue
 今回はvue-routerを使ったルーティングについて解説しました。
 
 次回は、メモの編集が行えるページを、/itemsのサブルートとして作成していきます。
+
+前回、vue-routerを使ってルーティングを行い、
+3つのページを作成しました。
+今回は、一覧ページで選択したメモを編集できるようにします。そのためには、次の手順を踏みます。
+
+    vue-routerの設定で、
+      編集ページを/itemsにネストする
+    編集ページを実装する
+
+# 編集ページのルーティング
+
+前回、一覧ページを次のように/itemsでルーティングするようにしました。
+
+routes.js
+
+{
+  path: '/items', component: Items, name: 'items'
+}
+
+ひとつのメモ（アイテム）が選択され、
+編集画面になるときのルーティングを素直に追加すると、次のようになるかと思います。
+
+
+routes.js
+
+{
+  path: '/items', component: Items, name: 'items'
+},
+{
+  path: '/items/:id', component: Edit, name: 'edit'
+}
+
+/:idの部分はidに動的な値がくることを表しています。
+/items/1や/items/2にアクセスしたとき、
+このルーティングにマッチして指定したコンポーネントが表示されます。
+この値はJavaScriptから
+$route.params.idといった形式で参照することができます。
+
+編集ページが独立したページであるなら上記のルーティングでよいのですが、
+今回は使いやすさを考えて、
+独立したページではなく、
+次のように一覧ページ内に編集用のエディタが表示されるようにしたいと考えました。
+
+編集ページが独立している場合、
+メモの選択→編集ページ→戻る→一覧ページ→メモの選択といったアクションが必要になり、
+使いやすいとはいえないUIになってしまいます。
+上記のようなUIであれば、一覧からメモを選択、編集しやすくなります。
+
+# ルーティングをネストする
+
+vue-routerでは、
+<router-view>でレンダリングされたコンポーネントが<router-view>を持つことができます。
+
+次のようにchildrenにルーティングを追加することで、
+ネストしたルーティングがマッピングできます。
+
+ルーティング設定があるroutes.jsを書き換えます。
+import文でEditorViewコンポーネントを読み込みます。
+/itemsに:idをネストし、
+そこにEditorViewコンポーネントをマッピングしています。
+
+routes.js
+
+// （省略）
+import EditorView from './components/EditorView'
+
+export default {
+  mode: 'history',
+  routes: [
+    // （省略）
+    {
+      path: '/items', component: Items, name: 'items', children: [
+        {
+          path: ':id', component: EditorView, name: 'edit'
+        }
+      ]
+    }
+  ]
+}
+
+Items.vueに<router-view>を追加する
+
+Itemsコンポーネントに次のように<router-view>要素を追加すると、
+URLが/items/:idにマッチしたときにEditorViewが表示されます。
+ここではレイアウトのためのスタイルも追加しておきます。
+
+Items.vue
+
+<style lang="scss">
+  .layout-items {
+    display: flex;
+    &-left {
+      flex-grow: 1;
+      overflow: scroll;
+    }
+    &-right {
+      border-left: 1px solid #bbb;
+    }
+  }
+</style>
+
+<template>
+  <div class="layout-items">
+    <list-view class="layout-items-left" :memos="memos"></list-view>
+    <router-view class="layout-items-right"></router-view>
+  </div>
+</template>
+...
+
+URLバーから/items/3に直接アクセスすると、
+次のようにListViewとEditorViewが横並びに表示されるのを確認できます。
+
+# メモを選択して編集ページに遷移する
+
+一覧ページのメモをクリックしたときに、
+編集ページに遷移するようにしましょう。
+
+まずListItemをクリックしたときに
+'select'イベントが発生するようにします。
+ListItemのdiv要素に@click="select(memo.id)"を追加します。
+クリックされたメモのidを引数にして、'select'イベントを発生させます。
+
+また、ここでは削除ボタンの部分を@click.stopと変更しています。
+この.stopはv-onディレクティブのための特別なイベント修飾子です。
+
+.stopを付けることで、削除ボタンをクリックしたときに、
+イベントが伝搬してselectが一緒に実行されてしまうのを避けることができます。
+
+ListItem.vue
+
+<template>
+  <!--  @clickを追加  -->
+  <div class="list-item" @click="select(memo.id)">
+    （省略）
+    <div>
+      <!--  @click.stopに変更  -->
+      <button @click.stop="remove(memo.id)">
+        削除
+      </button>
+    </div>
+  </div>
+</template>
+
+<script>
+  // （省略）
+  methods: {
+    remove(id) {
+      this.$emit('remove', id)
+    },
+    // select()を追加
+    select(id) {
+      this.$emit('select', id)
+    }
+  }
+  // （省略）
+</script>
+
+イベント修飾子にはほかにもevent.preventDefault()を呼び出す.preventや、
+イベントハンドラを一度だけ実行する.onceなどがあり、
+
+共通してよく使うような処理を書かずにすむようになっています。
+イベント修飾子を使うことで、
+イベントハンドラ内部からDOMイベントの処理を切り離すことができます。
+
+# イベントを親コンポーネントへ伝える
+
+'select'イベントをItemsまで伝えるために、
+ListViewコンポーネントからも
+'select'イベントを発生するように変更します。
+<list-item>要素に@select="select"を追加します。
+
+<list-item>からくる'select'イベントを受け取ったら、
+同じようにidを引数にして'select'イベントを発生させます。
+methodsにselect(id)を追記します。
+
+ListView.vue
+
+<template>
+  <div class="list-view">
+    <div v-if="hasMemo">
+      <!--  @selectを追加  -->
+      <list-item v-for="memo in filteredMemos"
+        :memo="memo"
+        @remove="remove"
+        @select="select">
+      </list-item>
+    </div>
+    （省略）
+  </div>
+</template>
+
+<script>
+  （省略）
+    methods: {
+      remove(id) {
+        this.$emit('remove', id)
+      },
+      // select()を追加
+      select(id) {
+        this.$emit('select', id)
+      }
+    },
+  （省略）
+</script>
+
+選択されたidを元にページ遷移する
+
+pageディレクトリにあるItemsで'select'イベントを受け取って、ページを遷移するように変更します。
+
+select()では$router.push()で編集ページに遷移させています。
+このとき、ルーティングで設定した/items/:idの:idをparams.idとして渡します。
+こうすることでidの値を元に動的にページ遷移を行うことができます。
+
+Items.vue
+
+...
+<template>
+  <div class="layout-items">
+    <!--  @selectを追加  -->
+    <list-view class="layout-items-left"
+      :memos="memos"
+      @remove="remove"
+      @select="select"></list-view>
+    <router-view class="layout-items-right"></router-view>
+  </div>
+</template>
+
+<script>
+    //（省略）
+    methods: {
+      remove(id) {
+        this.$emit('remove', id)
+      },
+      // select()を追加
+      select(id) {
+        this.$router.push({name: 'edit', params: {id}})
+      }
+    },
+    //（省略）
+</script>
+
+# 選択したメモの内容をEditorViewで表示する
+
+EditorViewが表示されるようになりましたが、
+テキストボックスなどの中身が空です。
+EditorViewで選択したメモの内容が表示されるように変更します。
+
+# <router-view>に選択したメモのデータを渡す
+
+Itemsから選択したメモのデータを<router-view>に渡します。
+
+選択したメモのidと一致するメモをmemosの中から探して返すselectedMemoを、acomputedに定義します。
+合わせて、<router-view>のpropsとして:memo="selectedMemo"とデータを渡すようにします。
+
+Items.vue
+
+<template>
+  <div class="layout-items">
+    <list-view class="layout-items-left"
+      :memos="memos"
+      @remove="remove"
+      @select="select"></list-view>
+    <router-view class="layout-items-right" :memo="selectedMemo"></router-view>
+  </div>
+</template>
+
+<script>
+    // （省略）
+    props: {
+      memos: Array
+    },
+    computed: {
+      selectedMemo() {
+        if (this.$route.params.id !== undefined) { // id がある場合は `/items/:id` へのアクセス
+          const id = parseInt(this.$route.params.id, 10)
+          const memo = this.memos.find((memo) => {
+            return memo.id === id
+          })
+          return memo // id が一致するメモのデータを返す
+        }
+      }
+    },
+    //（省略）
+</script>
+
+propsで受け取ったmemoを表示する
+
+ItemsからEditorViewに渡されたmemoを表示するように、EditorViewを変更します。
+
+まずpropsでmemoを受け取るようにします。
+EditorView.vue
+
+<script>
+  export default {
+    props: {
+      memo: Object
+    },
+    // （省略）
+  }
+</script>
+
+次に、受け取ったmemoをthis.inputの各項目に入れるsetMemo()を、methodsに追加します。
+
+memoを受け取ったときにはその内容を表示し、
+memoを受け取っていなければdataに定義したものを使うようにします。
+
+EditorView.vue
+
+<script>
+  export default {
+    // （省略）
+    methods: {
+      // （省略）
+      setMemo() {
+        if (this.memo) {
+          Object.assign(this.input, this.memo, {tags: this.memo.tags.join(' ')})
+        }
+      }
+    }
+  }
+</script>
+
+次に、コンポーネントのcreatedフックのタイミングでsetMemo()を実行するようにします。
+
+EditorView.vue
+
+<script>
+  export default {
+    // （省略）
+    created() {
+      this.setMemo()
+    }
+  }
+</script>
+
+ここまでの変更で、
+一覧からメモを選択することで編集ページへと遷移し、
+選択したメモの内容が表示されるようになりました。
+しかしながら、
+メモを連続して選択してみると初回の遷移で表示されたメモが更新されず、
+そのまま表示されています。
+
+例として/items/1から/items/2に遷移したときを考えてみます。
+
+URLには変更がありますが、このときvue-routerはコンポーネントのインスタンスを破棄することなく、再利用します。
+
+そのため、前述したcreatedフックに指定したメソッドが実行されず、propsで渡されたmemoが更新されても、
+そのデータをセットする処理が行われないということです。
+
+この問題を解決するにはいくつかの手法が考えられますが、
+今回はmemoの値が変わったらsetMemo()が実行されるようにします。
+
+# 値の変更を監視して処理を実行する
+
+値の変更を監視するには、
+watchオプションを利用します。
+EditorViewにwatchを追加してmemoの変更があったときにsetMemo()が実行されるようにします。
+
+EditorView.vue
+
+<script>
+  export default {
+    // （省略）
+    created() {
+      this.setMemo()
+    },
+    watch: {
+      memo: 'setMemo'
+    }
+  }
+</script>
+
+これでmemoが更新されるたびにsetMemo()が実行されるようになります。
+
+# 更新処理を追加する
+
+EditorViewに表示された項目を変更して、
+保存ボタンをクリックしてもデータは更新されず、何も起こりません。
+更新処理を追加しましょう。
+
+Items.vueにある編集画面を表示する<router-view>要素に、
+@add="update"を追加します。
+
+さらにmethodsにupdate()を追加します。
+保存ボタンをクリックしたときに発生する'add'イベントをItemsで受け取り、
+受け取ったデータを'update'イベントとしてAppに伝えます。
+
+ここでは'update'イベントを発生させたあと、
+一覧ページへと遷移させるようにしています。
+
+Items.vue
+
+...
+<template>
+    <!-- （省略） -->
+    <router-view class="layout-items-right"
+      :memo="selectedMemo"
+      @add="update">
+    </router-view>
+  </div>
+</template>
+
+<script>
+  // （省略）
+  methods: {
+    // （省略）
+    update(data) {
+      this.$emit('update', data)
+      this.$router.push({name: 'items'})
+    }
+  },
+  // （省略）
+</script>
