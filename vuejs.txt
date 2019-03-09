@@ -3344,3 +3344,35 @@ actions: {
       })
   }
 }
+
+# getters
+
+gettersはS
+tore用の算出プロパティ（computed）のようなものです。
+
+たとえば、
+次のようなユニークなidを持つアイテムの配列をstateが持っている場合に、
+アイテムのidを指定して取り出せるような関数を定義する、といった使い方をします。
+
+gettersの使用例
+
+state: {
+  items: [
+    { id: 1, text: 'hoge'},
+    { id: 2, text: 'fuga'}
+  ]
+},
+getters: {
+  getItemById: (state, id) => {
+    return state.items.find(item => item.id === id)
+  }
+}
+
+gettersに定義した関数は、
+次のようにstore.gettersを参照して実行します。
+
+gettersに定義した関数の呼び出し
+
+const item = store.getters.getItemById(2)
+console.log(item)
+// => { id: 2, text: 'fuga'} が出力される
