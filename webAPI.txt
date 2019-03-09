@@ -1133,3 +1133,348 @@ REST APIで無駄なく効率よく必要なデータを返すようにするに
 
 対してGraphQLのエンドポイントは1つだけで、
 そこから複数リソースのデータを参照できるため、肥大化を避けることができます。
+
+# GraphQLでデータを取得する
+
+ここまでは、
+GraphQLの特徴を文章で解説してきましたが、
+イメージをつかむために、実際のコードを見ながらGraphQLを理解してみましょう。
+
+次のサンプルコードは、
+
+pxgridのcodegrid-draftリポジトリ（CodeGridの原稿のやりとりをするリポジトリ）の
+最新5件のClose済みプルリクエストのIDとタイトルを取得し、
+各プルリクエストのコメント最新10件、
+さらにそのリアクション最新3件
+を取得するためのGraphQLのクエリです。
+
+
+GraphQL
+
+query {
+  repository(owner: "pxgrid", name: "codegrid-draft") {
+    pullRequests(last: 5, states: CLOSED) {
+      edges {
+        node {
+          number
+          title
+          comments(last: 10) {
+            edges {
+              node {
+                body
+                reactions(last: 3) {
+                  edges {
+                    node {
+                      content
+                      user {
+                        name
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+
+最初のqueryは
+ルートタイプと呼ばれるもので、
+GraphQLのクエリは必ずqueryかmutationからはじまります。
+
+先述のとおり、
+GraphQLはPOSTリクエストのbodyに欲しいデータの構造を
+指定してリクエストを送信するため、
+REST APIとは違い、データの取得や更新にかかわらず常にPOSTメソッドを利用します。
+データの取得か更新かの区別のために、このルートタイプを必要とします。
+
+ルートタイプが
+queryの場合はGETメソッドのように動作し、
+mutationの場合はmutation名によって判別し、
+POST、PATCH、DELETEの各メソッドのように動作します。
+
+ルートタイプの次の階層には、
+操作対象のフィールドを指定します。GraphQL APIを呼び出すときは、
+
+プリミティブな値（スカラ）だけを返すまで、
+フィールドをネストで指定する必要があります。
+
+フィールドごとに、子の階層に指定できるフィールドは変わります。
+フィールドに何を指定できるのかは、ドキュメントに記載があります。
+
+プリミティブ型とは、
+2個以上の要素の組み合わせではない
+単独の値を持つデータ型のことを指します。
+GitHub APIの場合、Int、Float、String、Boolean、IDがそれにあたります。
+つまり、値がオブジェクトではないフィールドのことです。
+
+フィールドには引数で条件を渡すことができ、
+取得するデータの絞り込みを行うことができます。
+なお、ドキュメントでTypeに!がついている引数は、
+必須項目のため省略できません。
+
+たとえば、1つ目のフィールドrepositoryのドキュメントを見てみます。
+
+nameとowner両方の引数がString型の必須項目であるため、
+repository(owner: "pxgrid", name: "codegrid-draft")のように指定しています。
+直下の階層に指定できる値は、
+フィールド名の右のリンク（ここでは「Reposotory」リンク）から辿ることができます。
+
+このリクエストによって、
+次のようなレスポンスを受け取ることができます。
+なお、表示上の都合により取得件数は調整しています。
+
+{
+  "data": {
+    "repository": {
+      "pullRequests": {
+        "edges": [
+          {
+            "node": {
+              "number": 1252,
+              "title": "Web API 4回目",
+              "comments": {
+                "edges": [
+                  {
+                    "node": {
+                      "body": "@tacamy \r\nツイート文のご確認をお願い致します。",
+                      "reactions": {
+                        "edges": []
+                      }
+                    }
+                  },
+                  {
+                    "node": {
+                      "body": "よいかと〜",
+                      "reactions": {
+                        "edges": [
+                          {
+                            "node": {
+                              "content": "THUMBS_UP",
+                              "user": {
+                                "name": "Yoko Maruyama"
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "node": {
+              "number": 1258,
+              "title": "第1回 レンジ入力欄の仕様",
+              "comments": {
+                "edges": [
+                  {
+                    "node": {
+                      "body": "@soto3 とりあえずアウトラインてきなものです。",
+                      "reactions": {
+                        "edges": [
+                          {
+                            "node": {
+                              "content": "HEART",
+                              "user": {
+                                "name": "SOTOMURA Natsuko"
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  {
+                    "node": {
+                      "body": "@geckotang \r\n\r\nアウトラインみますー。ありがとうございます。",
+                      "reactions": {
+                        "edges": []
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}
+
+
+リクエストのクエリと比較してみると、
+同じ構造でデータを取得できていることがわかります。
+
+query {
+  repository(owner: "pxgrid", name: "codegrid-draft") {
+    pullRequests(last: 5, states: CLOSED) {
+      edges {
+        node {
+          number
+          title
+          comments(last: 10) {
+            edges {
+              node {
+                body
+                reactions(last: 3) {
+                  edges {
+                    node {
+                      content
+                      user {
+                        name
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+
+REST API
+
+比較のために、
+同じデータをREST APIを使って取得してみましょう。
+
+
+const TOKEN = '**********'
+
+const request = axios.create({
+  baseURL: 'https://api.github.com',
+  headers: {
+    'Authorization': `token ${TOKEN}`,
+    // Preview support for Reactions API
+    'Accept': 'application/vnd.github.squirrel-girl-preview+json'
+  }
+})
+
+// ここに整形済みのデータを入れる
+let data = []
+
+getPulls('/repos/pxgrid/codegrid-draft/pulls')
+  .then(pulls => {
+    data = pulls
+  })
+
+function getPulls(url) {
+  return request.get(url, {
+    params: {
+      state: 'closed',
+      per_page: 5
+    }
+  })
+    .then(res => res.data)
+    .then(pulls => {
+      return Promise.all(pulls.map(pull => {
+        return getComments(pull.comments_url)
+          .then(comments => {
+            return {
+              number: pull.number,
+              title: pull.title,
+              comments
+            }
+          })
+      }))
+    })
+}
+
+function getComments(url) {
+  return request.get(url, {
+    params: {
+      per_page: 10
+    }
+  })
+    .then(res => res.data)
+    .then(comments => {
+      return Promise.all(comments.map(comment => {
+        return getReactions(comment.reactions.url)
+          .then(reactions => {
+            return {
+              body: comment.body,
+              reactions
+            }
+          })
+      }))
+    })
+}
+
+function getReactions(url) {
+  return request.get(url, {
+    params: {
+      per_page: 3
+    }
+  })
+    .then(res => res.data)
+    .then(reactions => {
+      return Promise.all(reactions.map(reaction => {
+        return {
+          content: reaction.content,
+          user: reaction.user.login
+        }
+      }))
+    })
+}
+
+GraphQL APIから得られるデータとまったく同じ構造とはいきませんが、
+REST APIから取得したデータから似たような構造を作ることはできます。
+
+しかし、REST APIの場合は、
+リソース単位でのリクエストが必要です。このGitHub APIの場合では、
+このたった5件のプルリクエストのデータを取得するだけでも5×10×3で最大150回のリクエストが必要となります。
+
+
+Ajaxは非同期処理ですので、複数リクエストを投げる場合、
+リクエストの処理タイミングをうまくコントロールする必要があり、
+やっかいです。
+
+また、バラバラに取得したデータを
+自分で整形し直す手間も面倒です。
+
+このような、複数のエンドポイントにまたがるデータが必要となる場合は、
+GraphQLのメリットがとくに際立ちます。
+
+# GraphQL Explorerを利用する
+
+GraphQLを試してみるなら、
+GitHubのGraphQL Explorerを利用することをおすすめします。
+
+まず最初にOAuth認証を行い、
+APIが使える状態にしておく必要があります。
+
+左側のエディタでクエリを指定し（1）、
+「▶」ボタンをクリックすると（2）、右側にレスポンスデータが表示されます（3）。
+
+
+このエディタは、
+指定可能な値の自動補完がされたり、
+型チェックによるエラー判定が行われたりと単体でもとても便利ですが、
+ツールバー右側の「Docs」ボタンでドキュメントを開いておくと、
+フィールドに指定できる値がさらにわかりやすくなるため、おすすめします。
+
+このExplorer上で
+いろいろとAPIからデータを取得してみることで、
+GraphQLの理解が深まると思いますので、ぜひ触ってみてください。
+
+最終回の今回は、
+これまで解説してきたREST APIのおさらいと、
+次世代のAPIといわれるGraphQLについて解説しました。
+GraphQLが主流となれば、
+APIを利用したサービス開発が今よりも捗るかもしれません。
+
+このシリーズでは、現在主流であるREST APIを中心に解説してきたため、
+GraphQLについては簡単にしか触れませんでした。
+さらに深く理解したい場合は、
+GraphQLの公式ドキュメントやGitHub API v4のドキュメントを参考にしてみてください。
