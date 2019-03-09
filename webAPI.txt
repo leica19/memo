@@ -82,3 +82,617 @@ HTTPプロトコルを利用し、
 リクエストとレスポンスによってやりとりを行います。
 よって、HTTP通信が可能な環境であれば、
 ブラウザに限らずどのような環境からもWeb APIにアクセスが可能です。
+
+手軽に試すなら、
+ターミナルからcurlコマンド（HTTP通信を行うコマンド）を利用する方法が早いのですが、
+ここでは、フロントエンド・エンジニアが普段から使い慣れている
+ブラウザからのAjax通信でWeb APIを利用してみましょう。
+
+生のXHRをそのまま扱うとコードが長くなり面倒なので、
+axiosを利用します。
+次のようなHTMLファイルを作成し、
+同じディレクトリに空のapp.jsを作成したら準備は完了です。
+
+index.html
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+</head>
+<body>
+<script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
+
+# GitHub APIを利用するための準備
+
+この記事では、GitHub API（REST API v3）を利用していきます。
+APIの使い方はすべて公式ドキュメントに掲載されているため、こちらを参照します。
+
+ドキュメントの右カラムは、利用できるAPIの種類の一覧です。
+一番上のOverviewはAPIを構成する基本事項などが記載されています。
+
+# ルートエンドポイントを設定する
+
+APIを利用するには、
+アクセス先のURIが必要で、
+URIはリソース（参照に値するデータの塊）ごとに
+1つ（またはそれ以上）割り振られています。
+
+たとえば、特定ユーザーの情報はhttps://api.github.com/users/:username、
+特定ユーザーのリポジトリ一覧はhttps://api.github.com//users/:username/repos
+にアクセスすることでデータを取得できます。
+このように、リソースごとに割り振られたURIのことをエンドポイントといいます。
+
+ドキュメントに記載されるエンドポイントは、
+/users/:usernameのようにルートパスになっていることが多く、
+また、APIのルートエンドポイントである
+https://api.github.com部分は省略できたほうがコードの見通しもよくなります。
+
+個別のリソースへのアクセス時にルートパスで指定できるように、
+axiosのbaseURLにルートエンドポイントを設定しておきます。
+
+
+app.js
+
+const request = axios.create({
+  baseURL: 'https://api.github.com'
+})
+
+# GitHub APIからパブリックな情報を取得する
+
+準備が終わったので、
+さっそく実際にAPIを叩いて、自分のアカウントの情報を取得してみましょう。
+
+ドキュメントを参照する
+
+ユーザー情報のAPIにアクセスするための情報は、
+Users | GitHub Developer Guideに記載があります。
+
+このうち、Get a single userが
+個別のユーザーの情報を取得するAPIです。
+
+ドキュメントの見方について軽く触れておきます。
+
+見出しのすぐ下には、
+利用するHTTPメソッドとアクセス先のエンドポイントが記載されています。
+
+GET /users/:username
+
+この例の場合は、
+GETメソッドを用いて/users/:usernameにアクセスすると、
+データが取得できるということです。
+
+その下の「Response」は、
+APIから返ってくるレスポンスのフォーマットです。
+GitHub APIはJSON形式でレスポンスが返ってきます。
+
+
+HTTPメソッドの種類
+
+APIの操作を行うHTTPメソッドには、
+よく使われる主なものに次のような種類があります。
+それぞれのHTTPメソッドについては、次回以降で詳しく解説します。
+
+    GET : リソースの取得
+    POST : リソースの作成
+    PUT : リソースの作成、リソースの更新
+    PATCH : リソースの部分更新
+    DELETE : リソースの削除
+    HEAD : リソースのメタデータの取得
+    OPTIONS : リソースがサポートするメソッドを調べる
+
+# 自分のアカウントの情報を取得する
+
+APIへのリクエストに必要な情報（HTTPメソッドとエンドポイント）をドキュメントから得られたので、
+app.jsに次のように記載します。
+
+app.js
+
+const request = axios.create({
+  baseURL: 'https://api.github.com'
+})
+
+request.get('/users/***') // ***部分を自分のアカウント名に置き換える
+  .then(res => res.data)
+  .then(console.log)
+  
+ここで追加した箇所を、1行ずつ分けて見ていきましょう。
+
+request.get('/users/***')
+
+/users/:usernameにGETメソッドでリクエストを行います。
+
+
+.then(res => res.data)
+
+APIから返されるレスポンスには、
+
+実データ以外にも
+ステータスなどのさまざまな情報が含まれています。
+
+GitHub APIの場合は、レスポンスのdataオブジェクトに
+実データが入る仕様になっているため、
+
+res.dataをPromiseで返すことにより、
+
+次の.thenに実データだけを渡します。
+
+.then(console.log)
+
+渡されたデータをブラウザのコンソールに表示します。
+
+index.htmlをブラウザで開いて、
+コンソールに次のようなデータが表示されていたら成功です。
+
+{
+  "login": "***",
+  "id": ******,
+  "avatar_url": "https://avatars3.githubusercontent.com/u/******?v=4",
+  "gravatar_id": "",
+  "url": "https://api.github.com/users/***",
+  "html_url": "https://github.com/***",
+  "followers_url": "https://api.github.com/users/***/followers",
+  "following_url": "https://api.github.com/users/***/following{/other_user}",
+  "gists_url": "https://api.github.com/users/***/gists{/gist_id}",
+  "starred_url": "https://api.github.com/users/***/starred{/owner}{/repo}",
+  "subscriptions_url": "https://api.github.com/users/***/subscriptions",
+  "organizations_url": "https://api.github.com/users/***/orgs",
+  "repos_url": "https://api.github.com/users/***/repos",
+  "events_url": "https://api.github.com/users/***/events{/privacy}",
+  "received_events_url": "https://api.github.com/users/***/received_events",
+  "type": "User",
+  "site_admin": false,
+  "name": "***",
+  "company": "@pxgrid ",
+  "blog": "http://***.hatenablog.com/",
+  "location": "Japan",
+  "email": null,
+  "hireable": null,
+  "bio": null,
+  "public_repos": 18,
+  "public_gists": 10,
+  "followers": 42,
+  "following": 19,
+  "created_at": "2010-11-06T08:30:14Z",
+  "updated_at": "2017-08-25T22:28:10Z"
+}
+
+このAPIには、
+誰からでもアクセスできる情報しか含まれていないため、
+プライベートリポジトリの情報などは含まれていません。
+
+そのような情報にAPIからアクセスするには、
+アクセス元を証明するための認証を行う必要があります。
+
+前回は、Web APIの概要を解説し、
+実際にGitHub APIを利用してみましたが、
+APIから取得したデータには誰からでもアクセスできるような情報しか含まれていませんでした。
+
+GitHubのAPIにはIssuesやRepositories、
+UsersやTeamsなどたくさんのエンドポイントがありますが、
+そのうち多くのエンドポイントでは認証による本人確認を必要とします。
+認証がなければ、プライベートリポジトリなどの閲覧権限が必要な情報にアクセスできなかったり、
+データの書き換えなどが行えないからです。
+
+一般的に、本人認証を行うというと
+、ユーザーIDとパスワードによる認証をイメージするかもしれませんが、
+ここではアクセストークンによる認証を解説します。
+アクセストークンを利用する理由も併せて解説していきましょう。
+
+# アクセストークンとは
+
+アクセストークン（Access token）とは、
+APIやアプリケーションがユーザー認証に用いるもので、
+実態はbcxuizw94cw4sk8nvpv99tkjcnf3wx0lphms1xp2のような文字列です。
+
+APIへのリクエスト時に、
+ヘッダかクエリにアクセストークンをつけてサーバーに送信すると、
+サーバー側はアクセストークンを見て、
+リクエストの送信元がどのユーザーであるかを判別し、
+認証を行います。
+
+つまり、アクセストークンとは、ユーザーIDとパスワードの代わりとなるものです。
+
+GitHub APIの場合、
+認証が必要なエンドポイントに対して、認証なしでアクセスしようとすると
+401 Unauthorizedまたは403 Forbidden、
+あるいはプライベートリポジトリに関するエンドポイントなどでは404 Not Foundなどのエラーが返り、
+データを取得できません。
+しかし、アクセストークンを利用することで、認証が必要なデータを取得することができます。
+
+# アクセストークンの特徴
+
+アクセストークンは
+ユーザーIDとパスワードの代わりになるものとお伝えしましたが、
+GitHubのユーザーIDとパスワードを用いてGitHub APIの認証を行うことも可能です。
+では、なぜわざわざAPIの認証にアクセストークンを用いるのでしょうか。
+それは、アクセストークンには次のような特徴があるためです。
+
+アクセストークンはアプリごとに発行でき、そのアプリ内でのみ利用できる
+アクセストークン発行時にアクセス権を個別に制限できる（情報の閲覧はできるが書き換えは不可など）
+
+アクセス権の設定というのは、
+GitHub認証を行って利用するアプリケーションに、
+どこまでの権限を与えるかを設定するということです。
+
+もしそのアプリケーションが悪意のあるサイトだった場合、
+与えた権限のレベルに応じて悪いことができてしまいます。
+
+しかし、アプリケーションによって適切な権限を設定しておけば、
+万が一アクセストークンが外部に漏れてしまったとしても、
+最小限の被害に抑えることができます。
+
+信用できないアプリケーションに対しては、
+書き換えなどのリスクの高い権限は与えないようにするか、
+そもそも認証を行わないことです。また、もしアクセストークンが外部に漏れてしまった場合でも、
+アクセストークンの管理画面から該当のアクセストークンを削除して新たに発行すれば、
+以前のアクセストークンは利用停止できます。
+
+対して、ユーザーIDとパスワードによる認証では、
+漏洩してしまった場合は、
+悪用されると管理者権限ですべての機能を実行できてしまうため、被害は大きくなりますし、
+パスワードの変更など手間もかかります。
+
+# アクセストークンを発行する
+
+アクセストークンがどのようなものかがわかったところで、
+さっそく、GitHub APIを利用するためのアクセストークンを発行してみましょう。
+
+GitHubのアクセストークンの発行方法には、
+「ユーザー自身がウェブ上でアクセストークンを発行する方法」と、
+「OAuthログインを介してアプリケーションにてアクセストークンを取得する方法」
+とがあります。
+
+ユーザーがアクセストークンを発行する場合、
+発行したアクセストークンの管理はユーザー任せとなりますが、
+OAuthによる認証よりも実装コストがかかりません。
+このシリーズでは、APIを利用するのは本人だけという前提で解説しているので、
+サンプルコード上ではユーザー自身で発行したアクセストークンを利用します。
+
+GitHubでは、Personal access tokensのページからアクセストークンを発行できます。
+
+ページ右上の「Generate new token」ボタンをクリックすると、
+アクセストークンの作成画面に遷移します。
+
+「Token description」のテキストボックスには
+、何のアプリで利用するAPIなのかを入力します。
+自分用のメモなので、
+あとから自分が見てわかる名前ならどんな名前でもけっこうです。
+
+その下の「Select scopes」のチェックボックスで、
+このアクセストークンに許可を与えるアクセス権のスコープを設定します。
+
+このシリーズでは、
+ユーザー情報の他にも、次回以降でissueやリポジトリにもアクセスする予定のため、
+「user」と「repo」のスコープにチェックしておきます。
+
+最後に、「Generate token」ボタンをクリックすると、
+アクセストークンが発行されページ上にアクセストークンの文字列が表示されます。
+
+このアクセストークンは作成直後しか表示されないので注意してください。リロードやページ遷移を行うと、スコープの変更などはできますが、アクセストークンは二度と確認できません。
+
+そのため、
+ユーザー自身で必ずメモなどをとっておく必要があります。
+もし、わからなくなってしまった場合は、作成したアクセストークンを削除して、
+新しく作り直してください。その場合、削除したアクセストークンは利用できなくなります。
+削除したアクセストークンを復活することもできません。
+
+このような、ユーザーがアクセストークンを発行する方法は、
+自分で使うアプリケーションをつくったり、APIの機能を試してみる分には簡単でよいのですが、
+他の人にも使われるようなアプリケーションを作る場合では、
+ユーザーにこのアクセストークンを発行してもらうというのは、
+アプリケーションを利用する敷居が上がってしまいそうです。
+
+そのため、他の人にも使われるようなアプリケーションをつくる場合には、
+OAuthログインによるアクセストークンの発行を手法を用いるとよいでしょう。
+
+OAuthログインの実装については、Web APIの利用方法という本筋から離れてしまうためここでは詳しくは解説しませんが、
+次の囲みコラムを参考にしてください。
+
+
+## OAuthログインによるアクセストークンの発行
+
+よくWebサービス上で、
+TwitterやGoogleのIDでログインするボタンを見かけると思いますが、
+OAuthログインというのはアレのことです。
+
+OAuthログインを行うと、
+アプリケーション側は、
+ユーザー情報の中からログインしたユーザーのアクセストークンを取得することができます。
+一方、ユーザーは自身でアクセストークンを発行する必要もなく、
+そもそもアクセストークンの存在も意識することなくアプリケーションを利用できるため、
+ユーザー視点でいえばこちらの方が使い勝手がよいでしょう。
+
+GitHubのOAuthログインの実装方法については、
+Building OAuth Appsにドキュメントがあるので参考にしてください。
+
+また、OAuthログインを簡単に実装するための各種ライブラリや、
+Firebase AuthenticationのようなSDKを用意しているサービスもありますので、
+そういった便利なものを利用すると簡単に実装できます。
+
+ここでは、具体的な実装方法は触れませんが、
+大まかな流れは次のとおりです。
+
+    GitHubの設定画面から、
+    OAuthログインを行うアプリケーションを登録
+    
+    アプリケーションにOAuthログインの機能を実装
+    
+    ユーザーのOAuthログインのレスポンスデータの中に含まれているアクセストークンを取得
+    
+    アクセストークンをユーザーのローカルストレージやCookieなどに保存
+    
+    APIのリクエスト時に、
+    ユーザーのアクセストークンを付与して送信
+
+このようにすることで、
+アプリケーションのユーザーが自身のGitHubの情報にアクセスできるようになります
+
+# アクセストークンによる認証を行う
+
+では、取得したアクセストークンを使って、
+実際にGitHub APIにリクエストを送ります。
+
+前回と同じユーザー情報を取得するAPIにリクエストを送り、
+認証前と認証後で取得できるデータにどのような違いがあるかを確認してみましょう。
+
+GitHub APIへのアクセストークンの送信方法には、
+ヘッダーにつけて送る方法と、
+クエリとして送る方法がありますが、
+クエリの場合はURI上にアクセストークンの情報が見えてしまうので、
+次のようにして、ヘッダーに付与する方法がおすすめです。
+
+
+app.js
+
+const TOKEN = '**********' // 発行した自分のアクセストークンに置き換える
+
+const request = axios.create({
+  baseURL: 'https://api.github.com',
+  headers: {
+    'Authorization': `token ${TOKEN}`
+  }
+})
+
+request.get('/users/***') // ***部分を自分のアカウント名に置き換える
+  .then(res => res.data)
+  .then(console.log)
+  
+  
+アクセストークンをバージョン管理には含めないこと
+
+  アクセストークンが漏れて悪用されると、
+  他人があなたとしてAPIにアクセスできてしまうため、他人にはわからないようにしなくてはいけません。
+  そのため、GitHubなどのバージョン管理ツールや、
+  Web上には絶対にアクセストークンを載せないようにしましょう。
+
+  たとえば、アクセストークンを別ファイルとして管理しておき、
+  アプリケーションからはそのファイルを読み込んで利用し、
+  アクセストークンが書かれたファイルは、
+  .gitignoreなどでバージョン管理外にするなどの方法があります。
+
+  ただし、この記事上では、サンプルコードとしてわかりやすくするために、
+  同じファイル上にアクセストークンも記載しています。
+
+# 取得結果
+
+index.htmlをブラウザで開いて、コンソールに次のようなデータが表示されていたら成功です。
+
+{
+  "avatar_url": "https://avatars3.githubusercontent.com/u/******?v=4",
+  "bio": null,
+  "blog": "http://***.hatenablog.com/",
+  "collaborators": 5,
+  "company": "@pxgrid ",
+  "created_at": "2010-11-06T08:30:14Z",
+  "disk_usage": 71374,
+  "email": null,
+  "events_url": "https://api.github.com/users/***/events{/privacy}",
+  "followers": 42,
+  "followers_url": "https://api.github.com/users/***/followers",
+  "following": 32,
+  "following_url": "https://api.github.com/users/***/following{/other_user}",
+  "gists_url": "https://api.github.com/users/***/gists{/gist_id}",
+  "gravatar_id": "",
+  "hireable": null,
+  "html_url": "https://github.com/***",
+  "id": ******,
+  "location": "Japan",
+  "login": "***",
+  "name": "***",
+  "organizations_url": "https://api.github.com/users/***/orgs",
+  "owned_private_repos": 7,
+  "plan": {
+    "collaborators": 0,
+    "name": "developer",
+    "private_repos": 9999,
+    "space": 976562499
+  },
+  "private_gists": 0,
+  "public_gists": 10,
+  "public_repos": 18,
+  "received_events_url": "https://api.github.com/users/***/received_events",
+  "repos_url": "https://api.github.com/users/***/repos",
+  "site_admin": false,
+  "starred_url": "https://api.github.com/users/***/starred{/owner}{/repo}",
+  "subscriptions_url": "https://api.github.com/users/***/subscriptions",
+  "total_private_repos": 7,
+  "two_factor_authentication": true,
+  "type": "User",
+  "updated_at": "2018-03-04T16:28:16Z",
+  "url": "https://api.github.com/users/***"
+}
+
+前回、認証なしで取得したユーザー情報と比較してみると、
+次のデータが追加されていました。
+これらは、他人からは見ることのできないプライベートな情報です。
+
+{
+  "collaborators": 5,
+  "disk_usage": 71374,
+  "owned_private_repos": 7,
+  "plan": {
+  "collaborators": 0,
+  "name": "developer",
+  "private_repos": 9999,
+  "space": 976562499
+  },
+  "private_gists": 0,
+  "total_private_repos": 7,
+  "two_factor_authentication": true,
+}
+
+なお、アクセストークンによって、
+どのユーザーか判断できるようになったため、/users/***でユーザー名を個別に指定していた箇所を、
+/userに置き換えても同じ情報が取得できます。
+
+この他にも、issueやリポジトリの情報などにもアクセスできるようになったので、
+他のAPIもいろいろと試してみてください。
+
+# Web APIによるデータの作成、更新、削除
+
+GitHub APIでは、データの取得だけでなく、データの新規作成や更新、削除を行うことも可能です。
+その他のWeb APIでも、そのAPIにそれらの機能が用意されていれば、同じように可能です。
+
+第1回でも触れたとおり、Web APIは、HTTP通信によってクライアントとやりとりを行い、
+GET（取得）だけでなく、POST（作成）やPUT（更新）、DELETE（削除）などの
+HTTPメソッドを使用することもあります。
+
+Web APIのどのエンドポイントに対して
+どのHTTPメソッドを使用するかは、APIのドキュメントに記載されています。
+
+
+ドキュメントに記載されているとおりに
+HTTPメソッドを使用すればいいだけなので、
+単純にWeb APIを利用するだけであれば、
+HTTPメソッドについて詳しく理解する必要はないかもしれません。
+
+しかし、HTTPメソッドの役割を理解しておくと、
+Web API自体の理解も深まるかと思います。
+ここではそれぞれのHTTPメソッドについて簡単に解説しましょう。
+
+# GitHubのユーザー情報を更新する
+
+それぞれのメソッドの特徴を理解したところで、
+実際にGitHubのプロフィールページにあるユーザー情報を更新してみましょう。
+ここでは自分のアカウントのbioを更新します。
+次の画面キャプチャの、
+赤枠で囲んであるPixelGrid, Inc. 8px目 Frontend Engineerの部分がbioになります。
+
+ユーザー情報を更新するエンドポイントは
+Update the authenticated userですので、
+ドキュメントを見ながら進めていきましょう。
+
+HTTPメソッドの種類とエンドポイントを確認する
+
+ドキュメントにPACTH /userと記載されているため、
+HTTPメソッドはPATCHを使用し、エンドポイント/userにリクエストを送るということがわかります。
+
+なお、同じ/userエンドポイントでもGETメソッドの場合は、
+ユーザー情報の取得を行います（Get the authenticated userを参照）。
+同じエンドポイントでも、HTTPメソッドの種類によって、
+APIが行う処理が変わるので注意しましょう。
+
+パラメータを確認する
+
+ユーザー情報のうち、APIから更新できる情報は何かを知るには、
+ドキュメントの「Parameters」を参照します。
+このエンドポイントでは、nameやemailなども更新できるようですが、
+今回はbioのみ更新します。形式はstringとあるため、
+文字列を値に指定できるということがわかります。
+
+bioを更新してみる
+
+リクエストに必要な情報をドキュメントから得ることができたので、
+第1回で作成したapp.jsを次のように置き換えて、
+index.htmlをブラウザで開いて実行します。
+コード中のアクセストークンについては、第2回を参照してください。
+
+
+app.js
+
+const TOKEN = '**********' // 発行した自分のアクセストークンに置き換える
+
+const request = axios.create({
+  baseURL: 'https://api.github.com',
+  headers: {
+    'Authorization': `token ${TOKEN}`
+  }
+})
+
+request.patch('/user', {
+  bio: 'PixelGrid, Inc. 8px目 Frontend Engineer / JD'
+})
+  .then(console.log)
+
+
+  ここではaxiosを使っているため、
+  request.patch('/user')とすることで、
+  PATCHメソッドで/userにリクエストを送ることができます。
+
+  また、axiosの.pacth()は第二引数にオプションを渡すことができます。
+  更新対象のパラメータ名であるbioをキーに、
+  更新後の文字列を値に設定したオブジェクトをオプションに指定します。
+  ここでは、更新後の文字列はPixelGrid, Inc. 8px目 Frontend Engineer / JDです。
+
+  レスポンスを確認する
+
+  実行したら、ブラウザのコンソールで、
+  APIからのレスポンスを確認してみます。
+
+  どのようなレスポンスが返るかは、
+  ドキュメントの「Response」でサンプルを確認することができます。
+  
+  このAPIの場合、
+  成功した場合はstatusが200、statusTextが'OK'、
+  dataには更新後のユーザー情報のオブジェクトが含まれることがドキュメントから読み取れます。
+  ブラウザのコンソールを開いて、リクエストが成功しているかを確認してみてください。
+  
+  GitHub上の表示を確認する
+
+  GitHubのプロフィールページを開いて、
+  bioが指定したとおりに更新されたことを確認してみましょう。b
+  ioがPixelGrid, Inc. 8px目 Frontend EngineerからPixelGrid, 
+  Inc. 8px目 Frontend Engineer / JDに書き換わっているのがわかります。
+  
+  HTTPには各種メソッドがあり、
+  Web APIがそのメソッドに対応していれば、データの取得だけでなく、
+  作成、更新、削除もAPIで行えることを解説しました。
+  利用するAPIで何が行えるかは、ドキュメントに記載されています。
+  
+  issueのリストを取得する
+  
+  前回の記事では、HTTPには各種メソッドがあり、
+  Web APIがそのメソッドに対応していれば、作成、更新、削除もAPIで行えることを解説しました。
+  また、それらを利用し、実際にGitHubのユーザー情報の更新も行ってみました。
+  
+  GitHub APIでは、オプションとして条件を指定してGETリクエストを送ることで、
+  必要なデータだけを絞り込んだり、
+  ソート順を指定してデータを取得することができます。
+  GitHub以外のAPIでも、機能が用意されていれば同様に可能です。
+  今回は、これらの機能を解説していきます。
+
+まずは、自分がアサインされているissueのリストを取得してみます。
+List issuesのドキュメントから、使用するHTTPメソッドとエンドポイントを確認し、
+app.jsに次のように指定します。
+
+
+app.js
+
+const TOKEN = '**********' // 発行した自分のアクセストークンに置き換える
+
+const request = axios.create({
+  baseURL: 'https://api.github.com',
+  headers: {
+    'Authorization': `token ${TOKEN}`
+  }
+})
+
+request.get('/issues')
+  .then(res => res.data)
+  .then(console.log)
+
+ブラウザのコンソールを見てみると、30件のissueが取得できていることが確認できました。
