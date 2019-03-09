@@ -2621,3 +2621,726 @@ Items.vue
   },
   // （省略）
 </script>
+
+これでメモの編集をキャンセルして、一覧ページへと戻れるようになりました。
+
+今回は一覧ページのサブルートとして編集ページを追加し、
+メモの編集が行えるようにしました。
+データの追加だけでなく、編集が行えるようになって、
+アプリケーションらしくなりました。
+
+次回はVue.jsアプリケーションの状態管理の方法について、検討・解説します。
+
+# Vue.jsと状態管理
+
+まず、Vue.jsにおける状態（State）とは、
+何かを明らかにしておきましょう。
+Vue.jsの状態とは、Vueインスタンスのdataオブジェクトのことを指します。
+
+前回作ったメモアプリケーションでいうと、
+Appはdataオブジェクトにメモのコレクションの配列としてmemosという状態を持っていました。
+
+
+App.vue
+
+  data() {
+    return {
+      memos: [
+        ...
+      ]
+    }
+
+また、EditorViewは
+ユーザーからの入力を保持するためのinputという状態を持っていました。
+
+EditorView.vue
+
+    data() {
+      return {
+        input: {
+          text: '',
+          date: '',
+          tags: ''
+        }
+      }
+    },
+
+これらの状態は、
+必ずしもVueインスタンスやコンポーネントが持っている必要はなく、
+状態をどう扱うかはアプリケーションの作成者に委ねられています。
+
+# なぜ状態管理が重要なのか
+
+前回作ったような、
+小規模なアプリケーションであれば、
+どこでデータの更新が行われているか把握することは簡単です。
+コンポーネント同士が密なやり取りをしていたとしても、
+特に大きな問題となるようなこともありません。
+アプリケーションでエラーが起こったときも、どこに問題があるかを調査するのに、
+それほど時間はかからないでしょう。
+
+しかし、アプリケーションの規模が大きくなるにつれて、
+データの更新を行っている箇所が増え、
+各コンポーネントが好き勝手にアプリケーションの状態を変更していくと、
+次第にアプリケーション全体のデータの流れを把握することが困難になります。
+
+変更に強いアプリケーションを作るためには、
+変更に耐えられる状態管理を行う必要があります。
+
+# 破綻しやすい状態管理の例
+
+まず、Vue.jsのアプリケーションにおいて、
+破綻しやすい状態管理の例を見てみましょう。
+
+Vue.jsは単一の状態を、複数のVueインスタンスで共有することができます。
+たとえば、次のようにすることで、
+異なるVueインスタンスで同一のデータを参照することができます。
+
+app.js
+
+const dataSource = {
+  message: 'Hello Vue.js!!'
+}
+
+const vm1 = new Vue({
+  el: '#vm1',
+  template: `
+    <div> 
+      <input v-model="message">
+    </div>
+  `,
+  data() {
+    return dataSource
+  }
+})
+
+const vm2 = new Vue({
+  el: '#vm2',
+  template: `
+    <div>
+      <p>{{message}}</p>
+      <button @click="clear">clear</button>
+    </div>
+  `,
+  data() {
+    return dataSource
+  },
+  methods: {
+    clear() {
+      this.message = ''
+    }
+  }
+})
+
+document.querySelector('#button').addEventListener('click', (e) => {
+  dataSource.message += 'button clicked!!'
+})
+
+vm1とvm2は、
+dataオブジェクトでdataSourceという単一のデータを共有します。
+次のデモでテキストボックスの編集と、
+'clear'ボタンと'change'ボタンをそれぞれクリックしてみてください。
+
+v-modelへの対処
+
+Storeパターンを適用するにあたっては、
+ポイントがあります。
+
+破綻しやすい例で<input v-model="message">としていた箇所は、
+v-modelディレクティブを通してmessageを直接変更していました。
+これを<input v-model="sharedState.message">としてしまうと、
+"状態はActionによってのみ変更される"という制約を破ることになってしまいます。
+
+これを避けるために、
+前述した例では:valueに値をバインドし、
+'input'イベントが起こるたびにsetMessageActionを呼ぶように変更しています。
+
+app.js（抜粋）
+
+...
+template: `
+  <div> 
+    <input :value="sharedState.message" @input="updateMessage">
+  </div>
+`,
+...
+methods: {
+  updateMessage(e) {
+    store.setMessageAction(e.target.value)
+  }
+}
+...
+
+# Storeパターンの効能
+
+この単純なStoreパターンでは、
+Storeを見ればアプリケーションにどういった状態が存在しているかを、
+すぐに把握できます。
+また、同じように状態の変更を行う関数も一箇所に集約されているので、
+後からプロジェクトに参加した人でも、すぐに全体を把握できるでしょう。
+先に決めておいた制約の共有がしっかりできれば、
+人によって状態変更のやり方がバラバラになる、といったことも避けられます。
+
+ただし、この単純なStoreパターンが有効なのは
+、規模の小さなアプリケーションまでです。
+管理する状態が増えるほど、状態の変更を行う関数も増え、
+全体を把握するのが難しくなっていきます。
+規模に合わせて状態とActionを、
+ファイルとして分割できるような仕組みやプロセスの導入が必要になるでしょう。
+
+Vue.jsは規模に合わせて、
+段階的にスケールする仕組みをライブラリとツールで実現できます。
+
+【コラム】フロントエンドの設計
+
+Storeパターンなどがフォーカスされてきた背景としては、
+近年のWebアプリケーションにおいて、フロントエンドに求められる部分が大きくなったことがあります。
+特に、UIがリッチになったことでUI操作によるイベントが頻発するようになり、
+今まで用いられていたMVCやMVVMといった設計がマッチしないケースが出てきました。
+このようなイベントをうまく処理するための設計として、
+Facebookが提唱したfacebook/Fluxのような状態管理のパターンも注目を集めています。
+
+前回までで、メモアプリケーションの機能の実装は完了しました。
+今回は、アプリケーションの状態（State）の管理について、実装を混じえながら解説していきます。
+
+Vue.jsと状態管理
+
+まず、Vue.jsにおける状態（State）とは、
+何かを明らかにしておきましょう。Vue.jsの状態とは、
+Vueインスタンスのdataオブジェクトのことを指します。
+
+前回作ったメモアプリケーションでいうと、
+Appはdataオブジェクトにメモのコレクションの配列として
+memosという状態を持っていました。
+
+App.vue
+
+  data() {
+    return {
+      memos: [
+        ...
+      ]
+    }
+
+また、EditorViewはユーザーからの入力を保持するためのinputという状態を持っていました。
+
+
+EditorView.vue
+
+    data() {
+      return {
+        input: {
+          text: '',
+          date: '',
+          tags: ''
+        }
+      }
+    },
+
+これらの状態は、必ずしもVueインスタンスやコンポーネントが持っている必要はなく、
+状態をどう扱うかはアプリケーションの作成者に委ねられています。
+
+今回は状態管理が破綻しやすい例と、
+中央集権的な状態管理の方法であるStoreパターンについて解説しました。
+次回は、メモアプリケーションに、実際にStoreパターンを適用していきます。
+
+前回、状態管理について破綻しやすい例とStoreパターンについて解説しました。
+今回は、メモアプリケーションの状態管理をStoreパターンで置き換えます。
+
+store.jsの作成
+
+まず、空のファイルをsrc/store.jsとして保存します。
+store.jsは状態を格納するstateと状態を変更するactionsの2つを、
+まとめてexportするようにします。
+
+stateを定義する
+
+アプリケーションの状態はstateに格納します。次のようにstateを定義します。
+
+store.js
+
+const state = {
+  memos: []
+}
+
+メモアプリケーション全体として必要な情報はmemosのみになります。
+ほかの状態はコンポーネントのプライベートな状態として定義します。
+
+# actionsを定義する
+
+状態の変更を行うActionをまとめたactionsを、次のように定義します。
+
+actionsにはメモの追加（addMemo）、
+メモの削除（removeMemo）、メモの編集（updateMemo）
+という3つのActionが定義されています。
+
+状態の変更を行うactionsの定義（store.js）
+
+...
+const actions = {
+  addMemo(newMemo) {
+    // memos の中のメモで一番大きい id に 1 を足した値を取得する
+    newMemo.id = state.memos.reduce((id, memo) => {
+        return id < memo.id ? memo.id : id
+      }, 0) + 1
+    state.memos.push(newMemo)
+  },
+  removeMemo(id) {
+    const targetId = parseInt(id, 10)
+    // memos の中から id が一致するメモの index を取得する
+    const index = state.memos.findIndex((memo) => {
+      return memo.id === targetId
+    })
+    state.memos.splice(index, 1)
+  },
+  updateMemo(memo) {
+    const targetId = parseInt(memo.id, 10)
+    // memos の中から id が一致するメモの index を返す
+    const index = state.memos.findIndex((memo) => {
+      return memo.id === targetId
+    })
+    state.memos.splice(index, 1, memo)
+  }
+}
+
+デバッグ用の出力を追加する
+
+各Actionが呼ばれたことがわかるように、
+3つのActionそれぞれにデバッグ用の出力処理を追加します。
+次のように、デバッグ用の出力を行うかどうか判定するためのdebugを定義して、
+debugがtrueのときにconsole.log()でどのActionが呼ばれたかを出力します。
+
+
+デバッグ用の出力処理（store.js）
+
+...
+const debug = process.env.NODE_ENV !== 'production'
+const actions = {
+  addMemo(newMemo) {
+    debug && console.log(`addMemo triggered with`, newMemo)
+    // 変更なし
+  },
+  removeMemo(id) {
+    debug && console.log(`removeMemo triggered with`, id)
+    // 変更なし
+  },
+  updateMemo(memo) {
+    debug && console.log(`updateMemo triggered with`, memo)
+    // 変更なし
+  }
+}
+
+process.env.NODE_ENVには、
+vue-loader（webpack）がビルド時に使う環境変数が格納されています。
+npm run devで実行したサーバーでは'development'が格納され、
+npm run buildを実行したときには'production'が格納されます。
+この変数を参照することで、開発時にだけ実行したい処理を実装できます。
+ここではNODE_ENVが'production'以外のときにdebugがtrueになります。
+
+NODE_ENVの値はconfig/dev.env.jsとconfig/prod.env.jsで設定されます。
+
+同じ処理をユーティリティとして切り出す
+
+メモを削除するremoveMemoと、メモを編集するupdateMemoは、
+memosの中から該当するidを持ったメモのindexを探すという同じ処理を行っています。
+このユーティリティのような関数はutilといったオブジェクトにまとめて定義すると、
+Actionごとの処理がわかりやすくなり、修正が必要になったときも修正箇所を減らすことができます。
+
+memos中から該当するidを持ったメモのindexを返す関数を、util.findIndexとして定義します。
+
+
+特定のidを持つメモのindexを返す関数（store.js）
+
+...
+const util = {
+  // memos の中から id が一致するメモの index を返す
+  findIndex(memos, id) {
+    const targetId = parseInt(id, 10)
+    return memos.findIndex((memo) => {
+      return memo.id === targetId
+    })
+  }
+}
+
+const debug = process.env.NODE_ENV !== 'production'
+const actions = {
+  addMemo(newMemo) {
+    // 変更なし
+  },
+  removeMemo(id) {
+    debug && console.log(`removeMemo triggered with`, id)
+    const index = util.findIndex(state.memos, id)
+    state.memos.splice(index, 1)
+  },
+  updateMemo(memo) {
+    debug && console.log(`updateMemo triggered with`, memo)
+    const index = util.findIndex(state.memos, memo.id)
+    state.memos.splice(index, 1, memo)
+  }
+}
+
+utilに定義する関数はstateを直接参照せずに、
+引数として必要な値を受け取るようにしておくと、より使い回しがしやすくなります。
+
+# stateとactionsをexportする
+
+最後にstateとactionsをほかの箇所で使えるようにexportします。
+
+最後にstateとactionsをほかの箇所で使えるようにexportします。
+
+stateとactionsをexportする（store.js）
+
+...
+const actions = {
+  // 変更なし
+}
+export default {
+  state,
+  actions
+}
+
+これでStoreの準備は完了です。
+このStoreを、ページのコンポーネントから参照して利用します。
+
+# Storeを利用する際のルール
+
+Storeは次のようなルール（制限）を設けて利用します。
+
+src/pageのコンポーネントでだけStoreをimportする
+
+具体的なコードとしては、以下の3点がポイントとなります。
+
+src/componentsのコンポーネントはStoreのstateを参照しない
+src/componentsのコンポーネントはActionを実行しない
+Actionはsrc/pageのコンポーネントが実行する
+
+src/componentsの各コンポーネントは、
+レンダリングに必要なデータをpropsで受け取るようにして、
+Storeのstateを直接参照しないようにします。
+また、Actionを実行せずに、現状のまま自身に$emit()を実行して、
+親コンポーネントにイベントを伝えるようにします。
+こうして、イベントは親コンポーネントで監視するようにします。
+
+このルールはStoreとコンポーネントを疎結合にするためのもので、
+コンポーネントの再利用性を高めることになります。
+src/pageのコンポーネントは再利用することはないので、
+Storeと密結合になっても問題ありません。
+
+＃App.vueから不要な処理を削除する
+
+状態はStoreで管理して、
+状態の変更はpageのコンポーネントから実行するので、
+これまでApp.vueで行っていた処理のほとんどが不要になります。
+App.vueを次のように変更します。
+
+
+src/App.vue
+
+<style lang="scss">
+  /* 変更なし */
+</style>
+<template>
+  <div id="app">
+    <nav-link></nav-link>
+    <router-view class="contents"></router-view>
+  </div>
+</template>
+
+<script>
+import NavLink from './components/NavLink'
+
+export default {
+  name: 'app',
+  components: {
+    NavLink
+  }
+}
+</script>
+
+ここではdataとcomputedとmethodsを削除します。
+
+また、<router-view>に渡していたpropsとイベントの監視もすべて削除します。
+ここで削除した処理はsrc/pageのコンポーネントが行うように変更していきます。
+
+Items.vueでStoreを参照する
+
+次にsrc/pageのコンポーネントのひとつItems.vueを変更します。
+
+
+src/page/Items.vue
+
+<style scoped lang="scss">
+  /* 変更なし */
+</style>
+<template>
+  <div class="layout-items">
+    <list-view class="layout-items-left"
+      :memos="sharedState.memos"
+      @remove="remove"
+      @select="select"></list-view>
+    <router-view class="layout-items-right"
+      <!-- 変更なし  -->
+      ></router-view>
+  </div>
+</template>
+<script>
+  import ListView from '../components/ListView'
+  import store from '../store'
+  export default{
+    data() {
+      return {
+        sharedState: store.state
+      }
+    },
+    computed: {
+      selectedMemo() {
+        const id = this.$route.params.id
+        if (id !== undefined) {
+          const memo = this.sharedState.memos.find((memo) => {
+            return memo.id === parseInt(id, 0)
+          })
+          return memo
+        }
+      }
+    },
+    methods: {
+      remove(id) {
+        store.actions.removeMemo(id)
+      },
+      // 変更なし
+      update(data) {
+        store.actions.updateMemo(data)
+        this.$router.push({name: 'items'})
+      }
+    },
+    // 変更なし
+  }
+</script>
+
+import storeでStoreをインポートします。
+
+data.sharedStateとしてStoreのstateを参照して、
+memosを参照していた箇所をsharedState.memosと変更します。
+
+this.$emit()でApp.vueで処理をさせていたremoveとudpateを、
+それぞれの処理に対応する
+Action（store.actions.removeMemo()
+と
+store.actions.updateMemo()）の実行に置き換えます。
+
+# Rootの変更
+
+src/pageのRoot.vueも同じようにStoreを参照するように変更します。
+
+
+src/page/Root.vue
+
+<template>
+  <div>
+    <list-view
+      :memos="sharedState.memos"
+      @remove="remove"
+      :count="privateState.count"
+      :sort="privateState.sort"
+    ></list-view>
+    <router-link :to="{name: 'items'}">すべて見る</router-link>
+  </div>
+</template>
+
+<script>
+  import ListView from '../components/ListView'
+  import store from '../store'
+  export default{
+    data() {
+      return {
+        sharedState: store.state,
+        privateState: {
+          count: 3,
+          sort: 'latest'
+        }
+      }
+    },
+    methods: {
+      remove(id) {
+        store.actions.removeMemo(id)
+      }
+    },
+    components: {
+      ListView
+    }
+  }
+</script>
+
+propsで受け取っていたmemosへの参照を、
+sharedState.memosに変更します。
+もともとあったdataは、Items特有の状態なのでprivateStateに移します。
+
+Add.vue
+
+src/pageのAdd.vueも同じようにStoreを参照するように変更します。
+
+
+src/page/Add.vue
+
+<template>
+  <!-- 変更なし -->
+</template>
+
+<script>
+  import EditorView from '../components/EditorView'
+  import store from '../store'
+
+  export default{
+    methods: {
+      add(data) {
+        store.actions.addMemo(data)
+        this.$router.push({name: 'items'})
+      }
+    },
+    // 変更なし
+  }
+</script>
+
+storeをインポートして、
+this.emit('add')を
+store.actions.addMemo()に置き換えています。
+
+アプリケーションを実行する
+ 
+Storeへの置き換えが完了したので、
+アプリケーションを実行してみましょう。
+完成したアプリケーションのコードは、以下にあります。
+
+アプリケーションを実行して、
+メモの追加や削除を実行すると、
+開発者ツールのコンソールに変更のログが出力されているのが確認できます。
+
+今回はアプリケーションの状態管理をStoreパターンで置き換えました。
+規模の大きくないアプリケーションであれば、
+今回実装したような単純なStoreパターンでも十分に機能しますが、
+もっとしっかりとしたアプリケーションを構築するためには、
+状態管理のためのライブラリを導入することが求められます。
+
+Vue.jsはReduxやfacebook/fluxのようなライブラリを使って状態管理を行うことが可能ですが、
+VuexというVue.js専用の状態管理ライブラリがあります。
+Vuexを使えばVue.jsにスムーズに状態管理の仕組みを組み込むことができます。
+
+# Vuexとは
+
+VuexはVue.js専用の状態管理ライブラリです。
+Vuexを使うと、Storeパターンをより堅牢にしたような状態管理が行えるようになります。
+
+Vuexが必要になるのは、
+複雑な状態を持つシンプルではないSPAを構築する場合です。
+Vuexは状態の管理に強い制約を課すことで、
+アプリケーションの長期的な生産性を高めます。
+
+あまり規模の大きくないアプリケーションにVuexを導入してしまうと、
+ただ単に冗長なコードの記述を求められることなってしまいます。
+シンプルなアプリケーションであれば、Vuexを使わなくても、
+Storeパターンなどで十分に機能するでしょう。
+
+# Vuexの登場人物
+
+Vuexを導入する前に、
+Vuexに関するキーワードを把握しておきましょう。
+
+VuexのStoreは、次のように4つのプロパティで構成されます。
+
+
+VeuxのStore
+
+const store = new Vuex.Store({
+  state,
+  mutations,
+  actions,
+  getters
+})
+
+
+const store = new Vue.Store({
+  state,
+  mutations,
+  actions,
+  getters
+})
+
+state
+
+stateはStoreパターンと同じように、
+アプリケーションの状態そのものを定義します。
+
+アプリケーションの状態は、このstateだけが持つようにする必要があります。
+
+stateプロパティ
+
+state: {
+  message: 'Hello Vue.js!!'
+}
+
+mutations
+
+mutationsは、
+stateを変更する唯一の存在です。
+stateの変更は、必ずmutationsに定義した関数によって行われる必要があります。
+
+mutationsプロパティ
+
+mutations: {
+  updateMessage(state, {newMessage}) {
+    state.message = newMessage
+  }
+}
+
+また、mutationsに定義した関数は直接実行せず、
+commit()という関数を使って呼び出します。
+
+
+mutationsに定義した関数の呼び出し
+
+store.commit('updateMessage')
+
+mutationsに定義する関数では、
+必ず同期的にstateを更新する必要があります。
+
+これはmutationsが非同期だった場合に、
+Vuexがstateの変更を追跡するのが困難になるためです。
+非同期の処理は、次項で解説するactionsで行います。
+
+
+# actions
+
+actionsは、
+commit()を使ってmutationsを呼び出す関数を定義します。
+
+actionsプロパティ
+
+actions: {
+  updateMessage(context, {newMessage}) {
+    context.commit('updateMessage', {newMessage})
+  }
+}
+
+actionsに定義した関数も直接実行せず、
+dispatch()という関数を使って呼び出します。
+
+actionsに定義した関数の呼び出し
+
+store.dispatch('updateMessage')
+
+mutationsとは異なり、
+actionsは非同期の処理を含むことができます。
+
+たとえば、次のようなAPIからのレスポンスが必要な処理などを記述できます。
+
+actionsには非同期処理も定義できる
+
+actions: {
+  updateUserStatus(context) {
+    // getStatus() はユーザの最新のステータスを返す
+    user.getStatus()
+      .then((response) => {
+        context.commit('updateUserStatus', response.userStatus)
+      })
+  }
+}
