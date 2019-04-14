@@ -163,56 +163,80 @@ This command will prompt you to enter the name of your app,
   the app id (used primarily as the package for android), 
   and the directory of your app.
 
-
-APIs
-Introduction
-Accessibility
-App
-Background Task
-Browser
-Camera
-Clipboard
-Console
-Device
-Filesystem
-Geolocation
-Haptics
-Keyboard
-Local Notifications
-Modals
-Motion
-Network
-Push Notifications
-Share
-Splash Screen
-Status Bar
-Storage
-Toast
-Installing Capacitor
-There are two ways to start using Capacitor: adding Capacitor to an existing frontend project (recommended), or starting a fresh project. Capacitor was designed primarily to drop-in to existing frontend projects, but comes with a simple starting project structure if you'd like to start fresh.
-
-Capacitor provides a native mobile runtime and API layer for web apps. It does not come with any specific set of UI controls which you will most likely need unless you're building a game or something similar.
-
-We strongly recommend starting a Capacitor project with your mobile frontend framework of choice (such as Ionic), though we also provide a blank starter for apps that aren't using a frontend UI framework, and a starter that uses Ionic and is ready for building a production-ready native app and Progressive Web App.
-
-Before you start
-Make sure you have all the required Dependencies installed for the platforms you will be building for. Most importantly, make sure you update CocoaPods using pod repo update before starting a new project, if you plan on building for iOS using a Mac.
-
-Adding Capacitor to an existing web app
-Capacitor was designed to drop-in to any existing modern JS web app.
-
-To add Capacitor to your web app, run the following commands:
-
-cd my-app
-npm install --save @capacitor/core @capacitor/cli
-Then, init Capacitor with your app information. This will also install the default native platforms.
-
-npx cap init
-
-This command will prompt you to enter the name of your app, 
-  the app id (used primarily as the package for android), and the directory of your app.
-
-Capacitor is now installed in your project
+Capacitor is now installed in your project 🎉
 
 Note: npx is a new utility available in npm 5 or above that executes local binaries/scripts to avoid global installs.
+
+*******************************
+
+Using Capacitor Starter with Ionic Framework
+
+Integration into the Ionic CLI is coming soon.
+
+For now, 
+  create a new ionic app using ionic start, 
+  then follow the steps above to add Capacitor to an existing web app (in this case, your new Ionic app).
+*******************************
+
+Optional: Starting a fresh project
+
+Capacitor comes with a stock project structure 
+  if you'd rather start fresh and plan to add a UI/frontend framework separately.
+
+To create it, run:
+
+npx @capacitor/cli create
+
+This command will prompt 
+  you to enter the name of your app, 
+  the app id (used primarily as the package for android), and the directory of your app.
+
+This will create 
+  a very simple starting app 
+  with no UI library 
+  that you should nuke before starting your own app.
+
+*******************************
+
+PWA Elements
+
+Some Capacitor plugins, 
+  such as Camera, have web-based UI available 
+  when not running natively. 
+  For example, calling Camera.getPhoto() will load
+   a responsive photo-taking experience 
+   when running on the web or electron:
+
+*******************************
+
+This UI is implemented 
+  using a subset of the Ionic Framework web components. 
+  Due to the magic of Shadow DOM, 
+  these components should not conflict with your own UI 
+  whether you choose to use Ionic or not.
+
+Installation
+
+To enable these controls, 
+  you must add @ionic/pwa-elements to your app.
+
+A typical installation involves either 
+  adding the following script tag to the <head> of the index.html for your app:
+
+<script src="https://unpkg.com/@ionic/pwa-elements@1.0.1/dist/ionicpwaelements.js"></script>
+
+Or by installing 
+  and then importing from @ionic/pwa-elements:
+
+npm install @ionic/pwa-elements
+
+import '@ionic/pwa-elements';
+
+Note: 
+Please replace 1.0.1 
+  with the latest version of the package on NPM: 
+  @ionic/pwa-elements.
+
+*******************************
+
 
