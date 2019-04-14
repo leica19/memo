@@ -2621,3 +2621,357 @@ Items.vue
   },
   // （省略）
 </script>
+
+# Appでメモの更新を行う
+
+Appで'update'イベントを受け取ったら、
+該当するメモのデータを更新する処理を追加します。
+<router-view>要素に@update="update"追加します。
+
+methosにはupdate()を追加し、
+'update'イベントを受け取ると、
+update()が実行され、該当するメモをmemosから探し、受け取ったデータで更新するようにします。
+
+App.vue
+
+<template>
+  <div id="app">
+    <nav-link></nav-link>
+    <router-view class="contents" :memos="memos" @add="add" @remove="remove" :count="3" @update="update"></router-view>
+  </div>
+</template>
+
+<script>
+  // （省略）
+  methods: {
+    // （省略）
+    update(data) {
+      const id = parseInt(data.id, 10)
+      const index = this.memos.findIndex((memo) => {
+        return memo.id === id
+      })
+      this.memos.splice(index, 1, data)
+    }
+  },
+  // （省略）
+</script>
+
+# 戻るボタンの追加とidの表示
+
+EditorViewに一覧ページに戻るボタンを追加します。
+このボタンはpropsでmemoにデータが渡されている場合にのみ、
+表示されるようにします。合わせて、memoがある場合にのみinput.idを表示します。
+idは編集できないようにdisabled属性を付与し、
+スタイルで枠線を消して編集可能な項目と区別できるようにしておきます。
+
+methodsにcancel()を追加します。
+
+EditorView.vue
+
+<style scoped>
+  input:disabled {
+    border-color: transparent;
+  }
+</style>
+
+<template>
+  <div class="editor-view">
+    <!--  IDのdiv要素を追加  -->
+    <div v-if="memo">
+      <label>ID：</label>
+      <input v-model="input.id" disabled>
+    </div>
+    <!-- （省略） -->
+    <div>
+      <!--  戻るボタンを追加  -->
+      <button @click="cancel" v-if="memo">戻る</button>
+      <button @click="save">保存</button>
+    </div>
+  </div>
+</template>
+
+<script>
+    // （省略）
+    methods: {
+      // （省略）
+      cancel() {
+        this.$emit('cancel')
+      }
+    },
+    // （省略）
+</script>
+
+戻るボタンをクリックすると、
+cancel'イベントが発生するので、Items.vueで受け取って、
+一覧ページへと遷移するようにします。
+
+Items.vue
+
+<template>
+  <!-- （省略） -->
+  <router-view class="layout-items-right"
+    :memo="selectedMemo"
+    @add="update"
+    @cancel="cancel"></router-view>
+  <!-- （省略） -->
+</template>
+
+<script>
+    // （省略）
+    methods: {
+      // （省略）
+      cancel() {
+        this.$router.push({name: 'items'})
+      }
+    }
+    // （省略）
+</script>
+
+これでメモの編集をキャンセルして、一覧ページへと戻れるようになりました
+
+今回は一覧ページのサブルートとして編集ページを追加し、
+メモの編集が行えるようにしました。
+データの追加だけでなく、編集が行えるようになって、アプリケーションらしくなりました。
+
+前回までで、メモアプリケーションの機能の実装は完了しました。
+
+今回は、アプリケーションの状態（State）の管理について、実装を混じえながら解説していきます。
+
+# Vue.jsと状態管理
+
+まず、Vue.jsにおける状態（State）とは、何かを明らかにしておきましょう。
+Vue.jsの状態とは、Vueインスタンスのdataオブジェクトのことを指します。
+
+前回作ったメモアプリケーションでいうと、
+Appはdataオブジェクトにメモのコレクションの配列としてmemosという状態を持っていました。
+
+App.vue
+
+  data() {
+    return {
+      memos: [
+        ...
+      ]
+    }
+
+また、EditorViewはユーザーからの入力を保持するためのinputという状態を持っていました。
+
+
+EditorView.vue
+
+    data() {
+      return {
+        input: {
+          text: '',
+          date: '',
+          tags: ''
+        }
+      }
+    },
+
+
+これらの状態は、
+必ずしもVueインスタンスやコンポーネントが持っている必要はなく、
+状態をどう扱うかはアプリケーションの作成者に委ねられています。
+
+# なぜ状態管理が重要なのか
+
+前回作ったような、小規模なアプリケーションであれば、
+どこでデータの更新が行われているか把握することは簡単です。
+
+コンポーネント同士が密なやり取りをしていたとしても、特に大きな問題となるようなこともありません。
+
+アプリケーションでエラーが起こったときも、
+どこに問題があるかを調査するのに、それほど時間はかからないでしょう。
+
+しかし、アプリケーションの規模が大きくなるにつれて、
+データの更新を行っている箇所が増え、
+各コンポーネントが好き勝手にアプリケーションの状態を変更していくと、
+
+次第にアプリケーション全体のデータの流れを把握することが困難になります。
+
+変更に強いアプリケーションを作るためには、
+
+変更に耐えられる状態管理を行う必要があります。
+
+# 破綻しやすい状態管理の例
+
+まず、Vue.jsのアプリケーションにおいて、
+破綻しやすい状態管理の例を見てみましょう。
+
+Vue.jsは単一の状態を、
+複数のVueインスタンスで共有することができます。
+たとえば、
+次のようにすることで、異なるVueインスタンスで
+同一のデータを参照することができます。
+
+app.js
+
+const dataSource = {
+  message: 'Hello Vue.js!!'
+}
+
+const vm1 = new Vue({
+  el: '#vm1',
+  template: `
+    <div>
+      <input v-model="message">
+    </div>
+  `,
+  data() {
+    return dataSource
+  }
+})
+
+const vm2 = new Vue({
+  el: '#vm2',
+  template: `
+    <div>
+      <p>{{message}}</p>
+      <button @click="clear">clear</button>
+    </div>
+  `,
+  data() {
+    return dataSource
+  },
+  methods: {
+    clear() {
+      this.message = ''
+    }
+  }
+})
+
+document.querySelector('#button').addEventListener('click', (e) => {
+  dataSource.message += 'button clicked!!'
+})
+
+vm1とvm2は、
+dataオブジェクトでdataSourceという単一のデータを共有します。
+
+次のデモでテキストボックスの編集と、
+'clear'ボタンと'change'ボタンをそれぞれクリックしてみてください。
+
+vm1のテキストボックスの値を変更すると、
+vm2のmessageも更新されます。
+'clear'ボタンをクリックするとテキストボックスの文字列もクリアされます。
+また、'change'ボタンをクリックすると'button clicked'という文字列をmessageに追加しますが、
+このようなVueのインスタンスと無関係な場所からの変更でも再レンダリングが行われます。
+
+このデモはデータを一箇所で管理できていて、
+どこからデータを更新したかに関わらず、
+データの変更によってリアクティブにレンダリングが行われています
+。一見すると簡単で便利に思えるかもしれません。
+ですがこれは筋の悪い方法です。
+
+この方法がなぜ破綻しやすいかというと、
+ユーザーの入力と状態の更新がまとめて行われているからです。
+また、状態を更新できる箇所が複数あることも好ましくありません。
+アプリケーションに機能追加などを行っていくと、
+どこからどういったデータの更新が行われるか、
+次第に予測することも把握することもできなくなり、
+機能の追加だけでなく、デバッグさえも難しいものにするでしょう。
+
+# 状態の変更方法とデータの流れに制約を加える
+
+前述した破綻しやすい例では、
+状態の変更に何も制限がなかったため、それぞれが自由に状態を更新し、
+データがどこから更新されてどこに影響を与えるかがわからなくなります。
+アプリケーションが大きくなっていくと、すぐにデータの流れが複雑になり、メンテンナンスが難しくなります。
+
+ではデータの変更が追えて、
+データの流れが複雑にならないようにするにはどうするか、
+その答えの一つが中央集権的な状態管理です。
+そしてただ中央で状態を管理するのではなく、
+状態の変更とデータの流れに制約を与えることで、変更に強い状態管理を実現します。
+
+#  Storeパターンとは
+
+中央集権的な状態管理のパターンは、
+Storeパターンと呼ばれることが多いです。
+Storeパターンの単純な例を見てみましょう。今回は次のような制約をもとに実装を行います。
+
+    状態は単一のStoreで管理する
+    状態はActionによってのみ変更される
+
+この制約によって、
+自然とデータの流れを一方向に制約することになります。
+
+次のコードは、単純なStoreの実装です。
+すべての状態はstateに格納されます。
+
+xxxxActionという名前の関数がActionにあたります。
+これらのActionによってのみ、状態の変更を行うようにします。
+
+store.js
+
+const store = {
+  debug: true,
+  // これがstate
+  state: {
+    message: 'Hello Vue.js!!'
+  },
+  setMessageAction(newValue) {
+    this.debug && console.log(`setMessageAction triggered with ${newValue}`)
+    // set state
+    this.state.message = newValue
+  },
+  clearMessageAction() {
+    this.debug && console.log('clearMessageAction triggered')
+    // clear state
+    this.state.message = ''
+  }
+}
+
+ここではdebugがtrueの場合に、Actionが呼ばれたことをコンソールにログとして出すようにしています。
+
+このStoreを、アプリケーションから参照するようにします。
+
+app.js
+
+// store.js はscriptタグで読み込まれている状態
+const vm1 = new Vue({
+  el: '#vm1',
+  template: `
+    <div>
+      <input :value="sharedState.message" @input="updateMessage">
+    </div>
+  `,
+  data() {
+    return {
+      sharedState: store.state
+    }
+  },
+  methods: {
+    updateMessage(e) {
+      store.setMessageAction(e.target.value)
+    }
+  }
+})
+
+const vm2 = new Vue({
+  el: '#vm2',
+  template: `
+    <div>
+      <p>{{sharedState.message}}</p>
+      <button @click="clear">clear</button>
+    </div>
+  `,
+  data() {
+    return {
+      sharedState: store.state
+    }
+  },
+  methods: {
+    clear() {
+      store.clearMessageAction()
+    }
+  }
+})
+
+store.stateへの参照はsharedStateといった名前を付けておくことで、
+これがアプリケーション全体で共有する状態だということがわかるようにしておきます。
+
+sharedStateは参照専用として、直接変更を行わないようにします。
+
+sharedStateに変更を加える場合には、必ずActionを実行して変更します。
+コンポーネント固有の状態がある場合には、privateStateといった名前を付けておくことで、状態を区別することができます。
