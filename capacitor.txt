@@ -1,0 +1,364 @@
+
+Capacitor:
+    Native Progressive Web Apps
+
+Capacitor is a cross-platform app runtime 
+  that makes it easy to build web apps 
+  that run natively on iOS, Android, Electron, and the web. 
+  We call these apps "Native Progressive Web Apps" 
+  and they represent the next evolution beyond Hybrid apps.
+
+Capacitor provides a consistent, 
+  web-focused set of APIs 
+  that enable an app to stay as close 
+  to web-standards as possible, 
+  while accessing rich native device features on platforms that support them. 
+  Adding native functionality is easy 
+  with a simple Plugin API for Swift on iOS, 
+  Java on Android, and JavaScript for the web.
+
+Capacitor is a spiritual successor to Apache Cordova 
+  and Adobe PhoneGap, with inspiration from other popular cross-platform tools 
+  like React Native and Turbolinks, 
+  but focused entirely on enabling modern web apps to run on all major platforms with ease. 
+  Capacitor has backwards-compatible support for many existing Cordova plugins.
+
+Getting started with Capacitor is easy! 
+  Capacitor can be used as a drop in to any existing modern JavaScript project, 
+  or used to create a fresh Capacitor project from scratch.
+
+Follow the Getting Started guide to get started building your app.
+
+*******************************
+
+Capacitor Required Dependencies
+
+Capacitor has a number of dependencies depending on which platforms 
+  you're targeting and which operating systems you are developing on.
+
+The base requirements are Node v8.6.0 or later, 
+  and NPM version 5.6.0 or later (which is usually automatically installed with the required version of Node).
+
+Capacitor does not officially support yarn 
+  nor will we be able to fix or keep open any issues filed for it.
+
+For specific platforms, 
+  follow each guide below to ensure 
+  you have the correct dependencies installed.
+
+iOS Development
+
+For building iOS apps, 
+  Capacitor requires a Mac with Xcode 9 or above. 
+  Soon, you'll be able to use Ionic Appflow to build for iOS even if you're on Windows.
+
+Additionally, 
+  you'll need to install CocoaPods (sudo gem install cocoapods), 
+  and install the Xcode Command Line tools
+   (either from Xcode, or running xcode-select --install).
+
+Once you have CocoaPods installed, 
+  update your local repo by running pod repo update. 
+  You should run this command periodically to ensure 
+  you have the latest versions of CocoaPods dependencies.
+
+As a rule, 
+  the latest version of Capacitor always supports the last two iOS versions. 
+  For example, iOS 11 and iOS 10. 
+  For support for older versions of iOS, 
+  use an older version of Capacitor (if available).
+
+*******************************
+
+Installing Capacitor
+
+There are two ways to start using Capacitor: 
+  adding Capacitor to an existing frontend project (recommended), 
+  or starting a fresh project. 
+  Capacitor was designed primarily to drop-in to existing frontend projects, 
+  but comes with a simple starting project structure if you'd like to start fresh.
+
+Capacitor provides a native mobile runtime 
+  and API layer for web apps. 
+  It does not come with any specific set of UI controls 
+  which you will most likely need unless you're building a game or something similar.
+
+We strongly recommend starting a Capacitor project 
+  with your mobile frontend framework of choice (such as Ionic), 
+  though we also provide a blank starter for apps 
+  that aren't using a frontend UI framework, 
+  and a starter that uses Ionic and is ready for building a production-ready native app and Progressive Web App.
+
+Before you start
+
+Make sure you have all the required Dependencies installed for the platforms you will be building for. 
+  Most importantly, make sure you update CocoaPods using pod repo update 
+  before starting a new project, if you plan on building for iOS using a Mac.
+
+Adding Capacitor to an existing web app
+
+Capacitor was designed to drop-in to any existing modern JS web app.
+
+To add Capacitor to your web app,
+  run the following commands:
+
+cd my-app
+npm install --save @capacitor/core @capacitor/cli
+
+Then, init Capacitor with your app information. 
+  This will also install the default native platforms.
+
+npx cap init
+
+
+Android Guide
+Web/PWA Guide
+JavaScript Guide
+APIs
+Introduction
+Accessibility
+App
+Background Task
+Browser
+Camera
+Clipboard
+Console
+Device
+Filesystem
+Geolocation
+Haptics
+Keyboard
+Local Notifications
+Modals
+Motion
+Network
+Push Notifications
+Share
+Splash Screen
+Status Bar
+Storage
+Toast
+Installing Capacitor
+There are two ways to start using Capacitor: adding Capacitor to an existing frontend project (recommended), or starting a fresh project. Capacitor was designed primarily to drop-in to existing frontend projects, but comes with a simple starting project structure if you'd like to start fresh.
+
+Capacitor provides a native mobile runtime and API layer for web apps. It does not come with any specific set of UI controls which you will most likely need unless you're building a game or something similar.
+
+We strongly recommend starting a Capacitor project with your mobile frontend framework of choice (such as Ionic), though we also provide a blank starter for apps that aren't using a frontend UI framework, and a starter that uses Ionic and is ready for building a production-ready native app and Progressive Web App.
+
+Before you start
+Make sure you have all the required Dependencies installed for the platforms you will be building for. Most importantly, make sure you update CocoaPods using pod repo update before starting a new project, if you plan on building for iOS using a Mac.
+
+Adding Capacitor to an existing web app
+Capacitor was designed to drop-in to any existing modern JS web app.
+
+To add Capacitor to your web app, run the following commands:
+
+cd my-app
+npm install --save @capacitor/core @capacitor/cli
+Then, init Capacitor with your app information. This will also install the default native platforms.
+
+npx cap init
+
+This command will prompt you to enter the name of your app, 
+  the app id (used primarily as the package for android), 
+  and the directory of your app.
+
+Capacitor is now installed in your project 🎉
+
+Note: npx is a new utility available in npm 5 or above that executes local binaries/scripts to avoid global installs.
+
+*******************************
+
+Using Capacitor Starter with Ionic Framework
+
+Integration into the Ionic CLI is coming soon.
+
+For now, 
+  create a new ionic app using ionic start, 
+  then follow the steps above to add Capacitor to an existing web app (in this case, your new Ionic app).
+*******************************
+
+Optional: Starting a fresh project
+
+Capacitor comes with a stock project structure 
+  if you'd rather start fresh and plan to add a UI/frontend framework separately.
+
+To create it, run:
+
+npx @capacitor/cli create
+
+This command will prompt 
+  you to enter the name of your app, 
+  the app id (used primarily as the package for android), and the directory of your app.
+
+This will create 
+  a very simple starting app 
+  with no UI library 
+  that you should nuke before starting your own app.
+
+*******************************
+
+PWA Elements
+
+Some Capacitor plugins, 
+  such as Camera, have web-based UI available 
+  when not running natively. 
+  For example, calling Camera.getPhoto() will load
+   a responsive photo-taking experience 
+   when running on the web or electron:
+
+*******************************
+
+This UI is implemented 
+  using a subset of the Ionic Framework web components. 
+  Due to the magic of Shadow DOM, 
+  these components should not conflict with your own UI 
+  whether you choose to use Ionic or not.
+
+Installation
+
+To enable these controls, 
+  you must add @ionic/pwa-elements to your app.
+
+A typical installation involves either 
+  adding the following script tag to the <head> of the index.html for your app:
+
+<script src="https://unpkg.com/@ionic/pwa-elements@1.0.1/dist/ionicpwaelements.js"></script>
+
+Or by installing 
+  and then importing from @ionic/pwa-elements:
+
+npm install @ionic/pwa-elements
+
+import '@ionic/pwa-elements';
+
+Note: 
+Please replace 1.0.1 
+  with the latest version of the package on NPM: 
+  @ionic/pwa-elements.
+
+*******************************
+
+Using Capacitor with Ionic
+
+Install Capacitor into an Ionic project
+
+Capacitor 
+  installs directly into any Ionic project (1.0-4.x+) 
+  with a simple npm install:
+
+Start Ionic Project
+
+ionic start myApp tabs
+cd myApp
+
+Select "N" when asked to add Cordova.
+
+Build your Ionic App
+
+You must run npm run build 
+  at least once to create the www folder:
+
+npm run build
+
+Install Capacitor
+
+  Next, install capacitor into your project:
+
+npm install --save @capacitor/cli @capacitor/core
+
+Init Capacitor with your app information
+
+npx cap init [appName] [appId]
+
+where appName is the name of your app, 
+  and appId is the domain identifier of your app (ex: com.example.app).
+
+Add Platforms
+
+npx cap add ios
+npx cap add android
+
+Open IDE to build
+
+npx cap open ios
+npx cap open android
+
+Syncing your app with Capacitor
+
+Every time you perform a build (e.g. npm run build) 
+  that changes your web directory (default: www), 
+  you'll need to copy those changes down to your native projects:
+
+npx cap copy
+
+Using Ionic Native
+
+ionic Native is supported in Capacitor. 
+Currently, Ionic Native contains only Cordova plugins, 
+so whenever you find an Ionic Native wrapper you'd like to use, 
+install it and then install the corresponding Cordova plugin by running
+
+npm install your-cordova-plugin
+npx cap update
+
+See the Cordova guide for more information.
+
+*******************************
+
+Capacitor Workflow
+
+The Capacitor workflow involves a few consistent tasks:
+
+1. Develop and build your Web App
+
+Capacitor turns your web app into a native binary for each platform. 
+  Thus, much of your work will consist of developing 
+  and then building a mobile-focused web app.
+
+You will interact 
+  with the native platform underneath 
+  using Capacitor's APIs (such as Camera), 
+  or by using existing Cordova plugins 
+  with Capacitor's Cordova Compatibility.
+
+As a final step 
+  you will build your application using a command similar to
+
+npm run build
+
+If you are using a framework, follow your framework's build process.
+
+If for example you are using Ionic, this would be
+
+ionic build
+
+2. Copy your Web Assets
+
+When you are ready to run your app natively on a device or in a simulator, 
+  copy your built web assets using
+
+npx cap copy
+
+3. Open your Native IDE
+
+Capacitor uses the Native IDEs to build, 
+  simulate, and run your app. To open it run
+
+npx cap open
+
+4. Periodic Maintenance
+
+Your Capacitor app needs periodic maintenance, 
+  such as updating dependencies 
+  and installing new plugins.
+  
+To update your app's dependencies, run
+
+npx cap update
+
+To install new plugins (including Cordova ones), run
+
+npm install really-cool-plugin
+npx cap update
+
